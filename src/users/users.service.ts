@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 
+import { LoginUserDto } from './dto/login-user.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { UserEntity } from './entities/user.entity';
 import { UserResponse } from './interfaces/user-response.interface';
@@ -41,6 +42,37 @@ export class UsersService {
     const savedUser = await this.usersRepository.save(user);
 
     return this.buildUserResponse(savedUser);
+  }
+
+  async login(loginUserDto: LoginUserDto): Promise<UserResponse> {
+    const email = loginUserDto.email.trim().toLowerCase();
+
+    const user = await this.usersRepository.findOne({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new UnprocessableEntityException({
+        errors: {
+          body: ['email or password is invalid'],
+        },
+      });
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      loginUserDto.password,
+      user.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnprocessableEntityException({
+        errors: {
+          body: ['email or password is invalid'],
+        },
+      });
+    }
+
+    return this.buildUserResponse(user);
   }
 
   private async validateUniqueUser(
