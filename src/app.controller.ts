@@ -1,9 +1,13 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags, ApiQuery } from '@nestjs/swagger';
-import { I18n, I18nContext } from 'nestjs-i18n';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+
+import { AppService } from './app.service';
+
 @ApiTags('App')
 @Controller()
 export class AppController {
+  constructor(private readonly appService: AppService) {}
+
   @Get()
   @ApiOperation({ summary: 'Get localized Hello World message' })
   @ApiQuery({
@@ -17,7 +21,7 @@ export class AppController {
     description: 'Hello World message returned successfully',
     type: String,
   })
-  getHello(@I18n() i18n: I18nContext): string {
-    return i18n.t('translation.HELLO');
+  getHello(): string {
+    return this.appService.getHello();
   }
 }

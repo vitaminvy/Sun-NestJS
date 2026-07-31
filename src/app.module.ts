@@ -31,7 +31,7 @@ import { UsersModule } from './users/users.module';
       fallbackLanguage: 'en',
       loaderOptions: {
         path: join(__dirname, '/i18n/'),
-        watch: true,
+        watch: false,
       },
       resolvers: [new QueryResolver(['lang'])],
     }),
