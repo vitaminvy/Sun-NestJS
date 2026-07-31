@@ -4,7 +4,10 @@ import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import type ms from 'ms';
 
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RedisModule } from '../redis/redis.module';
 import { UserEntity } from './entities/user.entity';
+import { UserController } from './user.controller';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 
@@ -35,9 +38,10 @@ import { UsersService } from './users.service';
         };
       },
     }),
+    RedisModule,
   ],
-  controllers: [UsersController],
-  providers: [UsersService],
+  controllers: [UsersController, UserController],
+  providers: [UsersService, JwtAuthGuard],
   exports: [UsersService],
 })
 export class UsersModule {}

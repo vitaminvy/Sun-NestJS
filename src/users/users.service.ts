@@ -1,9 +1,14 @@
-import { Injectable, UnprocessableEntityException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 
+import { RedisService } from '../redis/redis.service';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { UserEntity } from './entities/user.entity';
@@ -18,6 +23,8 @@ export class UsersService {
     private readonly usersRepository: Repository<UserEntity>,
 
     private readonly jwtService: JwtService,
+
+    private readonly redisService: RedisService,
   ) {}
 
   async register(registerUserDto: RegisterUserDto): Promise<UserResponse> {
@@ -75,6 +82,28 @@ export class UsersService {
     return this.buildUserResponse(user);
   }
 
+  async getCurrentUser(userId: number, token: string): Promise<UserResponse> {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Unauthorized');
+    }
+
+    return this.buildUserResponse(user, token);
+  }
+
+  async logout(token: string): Promise<{ message: string }> {
+    const client = this.redisService.getClient();
+
+    await client.set(token, 'blacklisted', 'EX', 3600);
+
+    return {
+      message: 'Logout successfully',
+    };
+  }
+
   private async validateUniqueUser(
     email: string,
     username: string,
@@ -104,17 +133,19 @@ export class UsersService {
     }
   }
 
-  private buildUserResponse(user: UserEntity): UserResponse {
-    const token = this.jwtService.sign({
-      sub: user.id,
-      email: user.email,
-      username: user.username,
-    });
+  private buildUserResponse(user: UserEntity, token?: string): UserResponse {
+    const userToken =
+      token ??
+      this.jwtService.sign({
+        sub: user.id,
+        email: user.email,
+        username: user.username,
+      });
 
     return {
       user: {
         email: user.email,
-        token,
+        token: userToken,
         username: user.username,
         bio: user.bio,
         image: user.image,
