@@ -1,15 +1,30 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import { I18nModule, QueryResolver } from 'nestjs-i18n';
+import { join } from 'node:path';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+
+import { AppController } from './../src/app.controller';
+import { AppService } from './../src/app.service';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      imports: [
+        I18nModule.forRoot({
+          fallbackLanguage: 'en',
+          loaderOptions: {
+            path: join(process.cwd(), 'src/i18n/'),
+            watch: false,
+          },
+          resolvers: [new QueryResolver(['lang'])],
+        }),
+      ],
+      controllers: [AppController],
+      providers: [AppService],
     }).compile();
 
     app = moduleFixture.createNestApplication();
@@ -30,7 +45,7 @@ describe('AppController (e2e)', () => {
       .expect('Xin chào thế giới!');
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.close();
   });
 });

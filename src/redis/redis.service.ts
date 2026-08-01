@@ -1,8 +1,8 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import Redis from 'ioredis';
 
 @Injectable()
-export class RedisService implements OnModuleInit {
+export class RedisService implements OnModuleInit, OnModuleDestroy {
   private readonly client: Redis;
 
   constructor() {
@@ -15,6 +15,16 @@ export class RedisService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     await this.client.connect();
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    if (this.client.status === 'ready') {
+      await this.client.quit();
+
+      return;
+    }
+
+    this.client.disconnect();
   }
 
   async isTokenBlacklisted(token: string): Promise<boolean> {
