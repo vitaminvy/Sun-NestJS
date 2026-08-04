@@ -2,6 +2,8 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinTable,
+  ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -25,6 +27,23 @@ export class UserEntity {
 
   @Column({ type: 'varchar', nullable: true, length: 500 })
   image!: string | null;
+
+  @ManyToMany(() => UserEntity, (user) => user.followers)
+  @JoinTable({
+    name: 'user_follows',
+    joinColumn: {
+      name: 'follower_id',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'following_id',
+      referencedColumnName: 'id',
+    },
+  })
+  following!: UserEntity[];
+
+  @ManyToMany(() => UserEntity, (user) => user.following)
+  followers!: UserEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
