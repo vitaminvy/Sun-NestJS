@@ -6,12 +6,13 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiOkResponse } from '@nestjs/swagger';
 
 import { CurrentToken } from '../auth/decorators/current-token.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
-import { UserResponse } from './interfaces/user-response.interface';
+import { UserResponseDto } from './dto/user-response.dto';
 import { UsersService } from './users.service';
 
 @Controller('user')
@@ -20,10 +21,11 @@ export class UserController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({ type: UserResponseDto })
   getCurrentUser(
     @CurrentUser() currentUser: JwtPayload,
     @CurrentToken() token: string,
-  ): Promise<UserResponse> {
+  ): Promise<UserResponseDto> {
     return this.usersService.getCurrentUser(currentUser.sub, token);
   }
 

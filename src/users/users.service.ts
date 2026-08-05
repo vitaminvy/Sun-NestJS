@@ -11,8 +11,8 @@ import { Repository } from 'typeorm';
 import { RedisService } from '../redis/redis.service';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
+import { UserResponseDto } from './dto/user-response.dto';
 import { UserEntity } from './entities/user.entity';
-import { UserResponse } from './interfaces/user-response.interface';
 
 @Injectable()
 export class UsersService {
@@ -27,7 +27,7 @@ export class UsersService {
     private readonly redisService: RedisService,
   ) {}
 
-  async register(registerUserDto: RegisterUserDto): Promise<UserResponse> {
+  async register(registerUserDto: RegisterUserDto): Promise<UserResponseDto> {
     const email = registerUserDto.email.trim().toLowerCase();
     const username = registerUserDto.username.trim();
 
@@ -51,7 +51,7 @@ export class UsersService {
     return this.buildUserResponse(savedUser);
   }
 
-  async login(loginUserDto: LoginUserDto): Promise<UserResponse> {
+  async login(loginUserDto: LoginUserDto): Promise<UserResponseDto> {
     const email = loginUserDto.email.trim().toLowerCase();
 
     const user = await this.usersRepository.findOne({
@@ -82,7 +82,10 @@ export class UsersService {
     return this.buildUserResponse(user);
   }
 
-  async getCurrentUser(userId: number, token: string): Promise<UserResponse> {
+  async getCurrentUser(
+    userId: number,
+    token: string,
+  ): Promise<UserResponseDto> {
     const user = await this.usersRepository.findOne({
       where: { id: userId },
     });
@@ -133,7 +136,7 @@ export class UsersService {
     }
   }
 
-  private buildUserResponse(user: UserEntity, token?: string): UserResponse {
+  private buildUserResponse(user: UserEntity, token?: string): UserResponseDto {
     const userToken =
       token ??
       this.jwtService.sign({
@@ -142,14 +145,6 @@ export class UsersService {
         username: user.username,
       });
 
-    return {
-      user: {
-        email: user.email,
-        token: userToken,
-        username: user.username,
-        bio: user.bio,
-        image: user.image,
-      },
-    };
+    return new UserResponseDto(user, userToken);
   }
 }
