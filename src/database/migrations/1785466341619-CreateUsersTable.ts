@@ -1,63 +1,35 @@
-import { MigrationInterface, QueryRunner, Table } from 'typeorm';
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CreateUsersTable1785466341619 implements MigrationInterface {
+  name = 'CreateUsersTable1785466341619';
+
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.createTable(
-      new Table({
-        name: 'users',
-        columns: [
-          {
-            name: 'id',
-            type: 'int',
-            isPrimary: true,
-            isGenerated: true,
-            generationStrategy: 'increment',
-          },
-          {
-            name: 'username',
-            type: 'varchar',
-            length: '255',
-            isUnique: true,
-          },
-          {
-            name: 'email',
-            type: 'varchar',
-            length: '255',
-            isUnique: true,
-          },
-          {
-            name: 'password',
-            type: 'varchar',
-            length: '255',
-          },
-          {
-            name: 'bio',
-            type: 'text',
-            isNullable: true,
-          },
-          {
-            name: 'image',
-            type: 'varchar',
-            length: '500',
-            isNullable: true,
-          },
-          {
-            name: 'created_at',
-            type: 'timestamp',
-            default: 'CURRENT_TIMESTAMP',
-          },
-          {
-            name: 'updated_at',
-            type: 'timestamp',
-            default: 'CURRENT_TIMESTAMP',
-            onUpdate: 'CURRENT_TIMESTAMP',
-          },
-        ],
-      }),
-    );
+    await queryRunner.query(`
+      CREATE TABLE \`users\` (
+        \`id\` int NOT NULL AUTO_INCREMENT,
+        \`username\` varchar(255) NOT NULL,
+        \`email\` varchar(255) NOT NULL,
+        \`password\` varchar(255) NOT NULL,
+        \`bio\` text NULL,
+        \`image\` varchar(500) NULL,
+        \`created_at\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+        \`updated_at\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+        UNIQUE INDEX \`IDX_fe0bb3f6520ee0469504521e71\` (\`username\`),
+        UNIQUE INDEX \`IDX_97672ac88f789774dd47f7c8be\` (\`email\`),
+        PRIMARY KEY (\`id\`)
+      ) ENGINE = InnoDB
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropTable('users');
+    await queryRunner.query(`
+      DROP INDEX \`IDX_97672ac88f789774dd47f7c8be\` ON \`users\`
+    `);
+    await queryRunner.query(`
+      DROP INDEX \`IDX_fe0bb3f6520ee0469504521e71\` ON \`users\`
+    `);
+    await queryRunner.query(`
+      DROP TABLE \`users\`
+    `);
   }
 }
