@@ -6,6 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
+import { I18nService } from 'nestjs-i18n';
 import { Repository } from 'typeorm';
 
 import { RedisService } from '../redis/redis.service';
@@ -25,6 +26,8 @@ export class UsersService {
     private readonly jwtService: JwtService,
 
     private readonly redisService: RedisService,
+
+    private readonly i18nService: I18nService,
   ) {}
 
   async register(registerUserDto: RegisterUserDto): Promise<UserResponseDto> {
@@ -59,11 +62,9 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new UnprocessableEntityException({
-        errors: {
-          body: ['email or password is invalid'],
-        },
-      });
+      throw this.createBodyErrorException(
+        'translation.USERS.ERRORS.INVALID_EMAIL_OR_PASSWORD',
+      );
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -72,11 +73,9 @@ export class UsersService {
     );
 
     if (!isPasswordValid) {
-      throw new UnprocessableEntityException({
-        errors: {
-          body: ['email or password is invalid'],
-        },
-      });
+      throw this.createBodyErrorException(
+        'translation.USERS.ERRORS.INVALID_EMAIL_OR_PASSWORD',
+      );
     }
 
     return this.buildUserResponse(user);
@@ -91,7 +90,9 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Unauthorized');
+      throw new UnauthorizedException(
+        this.i18nService.t('translation.AUTH.ERRORS.UNAUTHORIZED'),
+      );
     }
 
     return this.buildUserResponse(user, token);
@@ -103,7 +104,7 @@ export class UsersService {
     await client.set(token, 'blacklisted', 'EX', 3600);
 
     return {
-      message: 'Logout successfully',
+      message: this.i18nService.t('translation.USERS.MESSAGES.LOGOUT_SUCCESS'),
     };
   }
 
@@ -116,11 +117,9 @@ export class UsersService {
     });
 
     if (existingEmail) {
-      throw new UnprocessableEntityException({
-        errors: {
-          body: ['email has already been taken'],
-        },
-      });
+      throw this.createBodyErrorException(
+        'translation.USERS.ERRORS.EMAIL_TAKEN',
+      );
     }
 
     const existingUsername = await this.usersRepository.findOne({
@@ -128,12 +127,20 @@ export class UsersService {
     });
 
     if (existingUsername) {
-      throw new UnprocessableEntityException({
-        errors: {
-          body: ['username has already been taken'],
-        },
-      });
+      throw this.createBodyErrorException(
+        'translation.USERS.ERRORS.USERNAME_TAKEN',
+      );
     }
+  }
+
+  private createBodyErrorException(
+    translationKey: string,
+  ): UnprocessableEntityException {
+    return new UnprocessableEntityException({
+      errors: {
+        body: [this.i18nService.t(translationKey)],
+      },
+    });
   }
 
   private buildUserResponse(user: UserEntity, token?: string): UserResponseDto {

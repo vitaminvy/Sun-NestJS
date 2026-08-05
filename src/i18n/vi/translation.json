@@ -1,3 +1,19 @@
 {
-  "HELLO": "Xin chào thế giới!"
+  "HELLO": "Xin chào thế giới!",
+  "AUTH": {
+    "ERRORS": {
+      "UNAUTHORIZED": "Không được phép",
+      "TOKEN_REVOKED": "Token đã bị thu hồi"
+    }
+  },
+  "USERS": {
+    "ERRORS": {
+      "INVALID_EMAIL_OR_PASSWORD": "email hoặc mật khẩu không hợp lệ",
+      "EMAIL_TAKEN": "email đã được sử dụng",
+      "USERNAME_TAKEN": "tên người dùng đã được sử dụng"
+    },
+    "MESSAGES": {
+      "LOGOUT_SUCCESS": "Đăng xuất thành công"
+    }
+  }
 }

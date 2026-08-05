@@ -1,3 +1,19 @@
 {
-  "HELLO": "Hello World!"
+  "HELLO": "Hello World!",
+  "AUTH": {
+    "ERRORS": {
+      "UNAUTHORIZED": "Unauthorized",
+      "TOKEN_REVOKED": "Token has been revoked"
+    }
+  },
+  "USERS": {
+    "ERRORS": {
+      "INVALID_EMAIL_OR_PASSWORD": "email or password is invalid",
+      "EMAIL_TAKEN": "email has already been taken",
+      "USERNAME_TAKEN": "username has already been taken"
+    },
+    "MESSAGES": {
+      "LOGOUT_SUCCESS": "Logout successfully"
+    }
+  }
 }
