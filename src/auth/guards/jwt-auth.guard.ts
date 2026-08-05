@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { I18nService } from 'nestjs-i18n';
 
 import { RedisService } from '../../redis/redis.service';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
@@ -20,6 +21,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
+    private readonly i18nService: I18nService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -28,25 +30,36 @@ export class JwtAuthGuard implements CanActivate {
     const token = this.extractToken(request);
 
     if (!token) {
-      throw new UnauthorizedException('Unauthorized');
+      throw this.createUnauthorizedException();
     }
+
+    let payload: JwtPayload;
 
     try {
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
-      const client = this.redisService.getClient();
-      const blacklisted = await client.get(token);
-
-      if (blacklisted) {
-        throw new UnauthorizedException('Token has been revoked');
-      }
-
-      request.user = payload;
-      request.token = token;
-
-      return true;
+      payload = await this.jwtService.verifyAsync<JwtPayload>(token);
     } catch {
-      throw new UnauthorizedException('Unauthorized');
+      throw this.createUnauthorizedException();
     }
+
+    const client = this.redisService.getClient();
+    const blacklisted = await client.get(token);
+
+    if (blacklisted) {
+      throw new UnauthorizedException(
+        this.i18nService.t('translation.AUTH.ERRORS.TOKEN_REVOKED'),
+      );
+    }
+
+    request.user = payload;
+    request.token = token;
+
+    return true;
+  }
+
+  private createUnauthorizedException(): UnauthorizedException {
+    return new UnauthorizedException(
+      this.i18nService.t('translation.AUTH.ERRORS.UNAUTHORIZED'),
+    );
   }
 
   private extractToken(request: AuthenticatedRequest): string | undefined {

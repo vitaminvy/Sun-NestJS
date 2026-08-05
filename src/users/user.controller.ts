@@ -12,7 +12,13 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { CurrentToken } from '../auth/decorators/current-token.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -25,7 +31,7 @@ import {
   USER_AVATAR_UPLOAD_DIR,
 } from '../uploads/upload.constants';
 import { UpdateUserRequestDto } from './dto/update-user.dto';
-import { UserResponse } from './interfaces/user-response.interface';
+import { UserResponseDto } from './dto/user-response.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('User')
@@ -35,10 +41,11 @@ export class UserController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({ type: UserResponseDto })
   getCurrentUser(
     @CurrentUser() currentUser: JwtPayload,
     @CurrentToken() token: string,
-  ): Promise<UserResponse> {
+  ): Promise<UserResponseDto> {
     return this.usersService.getCurrentUser(currentUser.sub, token);
   }
 
@@ -114,7 +121,7 @@ export class UserController {
     @CurrentUser() currentUser: JwtPayload,
     @Body() body: UpdateUserRequestDto,
     @UploadedFile() avatar?: LocalUploadedFile,
-  ): Promise<UserResponse> {
+  ): Promise<UserResponseDto> {
     return this.usersService.updateCurrentUser(currentUser.sub, body, avatar);
   }
 }

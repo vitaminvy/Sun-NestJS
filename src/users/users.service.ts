@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { rename, unlink } from 'node:fs/promises';
 import { basename, isAbsolute, join, relative } from 'node:path';
+import { I18nService } from 'nestjs-i18n';
 import { Repository } from 'typeorm';
 
 import { AttachmentEntity } from '../attachments/entities/attachment.entity';
@@ -22,8 +23,8 @@ import {
 import { LoginUserDto } from './dto/login-user.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { UpdateUserDto, UpdateUserRequestDto } from './dto/update-user.dto';
+import { UserResponseDto } from './dto/user-response.dto';
 import { UserEntity } from './entities/user.entity';
-import { UserResponse } from './interfaces/user-response.interface';
 
 interface StoredAvatarFile {
   path: string;
@@ -46,9 +47,11 @@ export class UsersService {
     private readonly jwtService: JwtService,
 
     private readonly redisService: RedisService,
+
+    private readonly i18nService: I18nService,
   ) {}
 
-  async register(registerUserDto: RegisterUserDto): Promise<UserResponse> {
+  async register(registerUserDto: RegisterUserDto): Promise<UserResponseDto> {
     const email = registerUserDto.email.trim().toLowerCase();
     const username = registerUserDto.username.trim();
 
@@ -72,7 +75,7 @@ export class UsersService {
     return this.buildUserResponse(savedUser);
   }
 
-  async login(loginUserDto: LoginUserDto): Promise<UserResponse> {
+  async login(loginUserDto: LoginUserDto): Promise<UserResponseDto> {
     const email = loginUserDto.email.trim().toLowerCase();
 
     const user = await this.usersRepository.findOne({
@@ -80,11 +83,9 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new UnprocessableEntityException({
-        errors: {
-          body: ['email or password is invalid'],
-        },
-      });
+      throw this.createBodyErrorException(
+        'translation.USERS.ERRORS.INVALID_EMAIL_OR_PASSWORD',
+      );
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -93,17 +94,18 @@ export class UsersService {
     );
 
     if (!isPasswordValid) {
-      throw new UnprocessableEntityException({
-        errors: {
-          body: ['email or password is invalid'],
-        },
-      });
+      throw this.createBodyErrorException(
+        'translation.USERS.ERRORS.INVALID_EMAIL_OR_PASSWORD',
+      );
     }
 
     return this.buildUserResponse(user);
   }
 
-  async getCurrentUser(userId: number, token: string): Promise<UserResponse> {
+  async getCurrentUser(
+    userId: number,
+    token: string,
+  ): Promise<UserResponseDto> {
     const user = await this.findAuthenticatedUser(userId);
 
     return this.buildUserResponse(user, token);
@@ -113,7 +115,7 @@ export class UsersService {
     userId: number,
     updateUserBody: UpdateUserRequestDto,
     avatarFile?: LocalUploadedFile,
-  ): Promise<UserResponse> {
+  ): Promise<UserResponseDto> {
     let storedAvatar: StoredAvatarFile | undefined;
 
     try {
@@ -170,7 +172,7 @@ export class UsersService {
     await client.set(token, 'blacklisted', 'EX', 3600);
 
     return {
-      message: 'Logout successfully',
+      message: this.i18nService.t('translation.USERS.MESSAGES.LOGOUT_SUCCESS'),
     };
   }
 
@@ -183,11 +185,9 @@ export class UsersService {
     });
 
     if (existingEmail) {
-      throw new UnprocessableEntityException({
-        errors: {
-          body: ['email has already been taken'],
-        },
-      });
+      throw this.createBodyErrorException(
+        'translation.USERS.ERRORS.EMAIL_TAKEN',
+      );
     }
 
     const existingUsername = await this.usersRepository.findOne({
@@ -195,11 +195,9 @@ export class UsersService {
     });
 
     if (existingUsername) {
-      throw new UnprocessableEntityException({
-        errors: {
-          body: ['username has already been taken'],
-        },
-      });
+      throw this.createBodyErrorException(
+        'translation.USERS.ERRORS.USERNAME_TAKEN',
+      );
     }
   }
 
@@ -261,11 +259,9 @@ export class UsersService {
     });
 
     if (existingEmail && existingEmail.id !== currentUserId) {
-      throw new UnprocessableEntityException({
-        errors: {
-          body: ['email has already been taken'],
-        },
-      });
+      throw this.createBodyErrorException(
+        'translation.USERS.ERRORS.EMAIL_TAKEN',
+      );
     }
   }
 
@@ -278,11 +274,9 @@ export class UsersService {
     });
 
     if (existingUsername && existingUsername.id !== currentUserId) {
-      throw new UnprocessableEntityException({
-        errors: {
-          body: ['username has already been taken'],
-        },
-      });
+      throw this.createBodyErrorException(
+        'translation.USERS.ERRORS.USERNAME_TAKEN',
+      );
     }
   }
 
@@ -292,7 +286,9 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Unauthorized');
+      throw new UnauthorizedException(
+        this.i18nService.t('translation.AUTH.ERRORS.UNAUTHORIZED'),
+      );
     }
 
     return user;
@@ -393,7 +389,17 @@ export class UsersService {
     return fileName.length > 255 ? fileName.slice(0, 255) : fileName;
   }
 
-  private buildUserResponse(user: UserEntity, token?: string): UserResponse {
+  private createBodyErrorException(
+    translationKey: string,
+  ): UnprocessableEntityException {
+    return new UnprocessableEntityException({
+      errors: {
+        body: [this.i18nService.t(translationKey)],
+      },
+    });
+  }
+
+  private buildUserResponse(user: UserEntity, token?: string): UserResponseDto {
     const userToken =
       token ??
       this.jwtService.sign({
@@ -402,14 +408,6 @@ export class UsersService {
         username: user.username,
       });
 
-    return {
-      user: {
-        email: user.email,
-        token: userToken,
-        username: user.username,
-        bio: user.bio,
-        image: user.image,
-      },
-    };
+    return new UserResponseDto(user, userToken);
   }
 }
