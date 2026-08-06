@@ -2,11 +2,15 @@ import {
   BadRequestException,
   Body,
   Controller,
+  FileTypeValidator,
   Get,
   HttpCode,
   HttpStatus,
+  MaxFileSizeValidator,
+  ParseFilePipe,
   Post,
   Put,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -19,11 +23,14 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import type { Response } from 'express';
 
+import { AUTH_TOKEN_COOKIE_NAME, USER_EXIT_PATH } from '../auth/auth.constants';
 import { CurrentToken } from '../auth/decorators/current-token.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { useantiCacheHeaders } from '../common/interceptors/anti-cache.interceptor';
 import type { LocalUploadedFile } from '../uploads/interfaces/local-uploaded-file.interface';
 import {
   AVATAR_MIME_TYPE_EXTENSIONS,
@@ -41,6 +48,7 @@ export class UserController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
+  @useantiCacheHeaders()
   @ApiOkResponse({ type: UserResponseDto })
   getCurrentUser(
     @CurrentUser() currentUser: JwtPayload,
@@ -49,15 +57,22 @@ export class UserController {
     return this.usersService.getCurrentUser(currentUser.sub, token);
   }
 
-  @Post('logout')
+  @Post(USER_EXIT_PATH)
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  logout(@CurrentToken() token: string): Promise<{ message: string }> {
-    return this.usersService.logout(token);
+  @useantiCacheHeaders()
+  blacklistCurrentToken(
+    @CurrentToken() credential: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ message: string }> {
+    res.clearCookie(AUTH_TOKEN_COOKIE_NAME);
+
+    return this.usersService.storeRevokedAccessCredential(credential);
   }
 
   @Put()
   @UseGuards(JwtAuthGuard)
+  @useantiCacheHeaders()
   @UseInterceptors(
     FileInterceptor('avatar', {
       dest: USER_AVATAR_UPLOAD_DIR,
@@ -120,7 +135,18 @@ export class UserController {
   updateCurrentUser(
     @CurrentUser() currentUser: JwtPayload,
     @Body() body: UpdateUserRequestDto,
-    @UploadedFile() avatar?: LocalUploadedFile,
+    @UploadedFile(
+      new ParseFilePipe({
+        fileIsRequired: false,
+        validators: [
+          new MaxFileSizeValidator({ maxSize: MAX_AVATAR_FILE_SIZE }),
+          new FileTypeValidator({
+            fileType: /^image\/(gif|jpeg|png|webp)$/,
+          }),
+        ],
+      }),
+    )
+    avatar?: LocalUploadedFile,
   ): Promise<UserResponseDto> {
     return this.usersService.updateCurrentUser(currentUser.sub, body, avatar);
   }

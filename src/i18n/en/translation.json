@@ -13,7 +13,13 @@
       "USERNAME_TAKEN": "username has already been taken"
     },
     "MESSAGES": {
-      "LOGOUT_SUCCESS": "Logout successfully"
+      "ACCESS_CREDENTIAL_CLEARED": "Logout successfully"
+    }
+  },
+  "ARTICLES": {
+    "ERRORS": {
+      "NOT_FOUND": "Article not found",
+      "FORBIDDEN": "You can only manage your own articles"
     }
   }
 }
