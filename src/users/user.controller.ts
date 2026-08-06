@@ -1,13 +1,9 @@
 import {
-  BadRequestException,
   Body,
   Controller,
-  FileTypeValidator,
   Get,
   HttpCode,
   HttpStatus,
-  MaxFileSizeValidator,
-  ParseFilePipe,
   Post,
   Put,
   UploadedFile,
@@ -31,12 +27,12 @@ import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { useantiCacheHeaders } from '../common/interceptors/anti-cache.interceptor';
 import type { LocalUploadedFile } from '../uploads/interfaces/local-uploaded-file.interface';
 import {
-  AVATAR_MIME_TYPE_EXTENSIONS,
   MAX_AVATAR_FILE_SIZE,
   USER_AVATAR_UPLOAD_DIR,
 } from '../uploads/upload.constants';
 import { UpdateUserRequestDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
+import { AvatarFilePipe } from './pipes/avatar-file.pipe';
 import { UsersService } from './users.service';
 
 @ApiTags('User')
@@ -71,18 +67,6 @@ export class UserController {
   @UseInterceptors(
     FileInterceptor('avatar', {
       dest: USER_AVATAR_UPLOAD_DIR,
-      fileFilter: (_request, file: LocalUploadedFile, callback) => {
-        if (!AVATAR_MIME_TYPE_EXTENSIONS[file.mimetype]) {
-          callback(
-            new BadRequestException('avatar must be a gif, jpeg, png or webp'),
-            false,
-          );
-
-          return;
-        }
-
-        callback(null, true);
-      },
       limits: {
         fileSize: MAX_AVATAR_FILE_SIZE,
       },
@@ -130,18 +114,7 @@ export class UserController {
   updateCurrentUser(
     @CurrentUser() currentUser: JwtPayload,
     @Body() body: UpdateUserRequestDto,
-    @UploadedFile(
-      new ParseFilePipe({
-        fileIsRequired: false,
-        validators: [
-          new MaxFileSizeValidator({ maxSize: MAX_AVATAR_FILE_SIZE }),
-          new FileTypeValidator({
-            fileType: /^image\/(gif|jpeg|png|webp)$/,
-          }),
-        ],
-      }),
-    )
-    avatar?: LocalUploadedFile,
+    @UploadedFile(AvatarFilePipe) avatar?: LocalUploadedFile,
   ): Promise<UserResponseDto> {
     return this.usersService.updateCurrentUser(currentUser.sub, body, avatar);
   }

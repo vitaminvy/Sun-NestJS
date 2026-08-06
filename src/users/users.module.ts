@@ -10,6 +10,7 @@ import { LoginRateLimitGuard } from '../auth/guards/login-rate-limit.guard';
 import { createJwtModuleOptions } from '../auth/jwt-module-options.factory';
 import { RedisModule } from '../redis/redis.module';
 import { UserEntity } from './entities/user.entity';
+import { AvatarFilePipe } from './pipes/avatar-file.pipe';
 import { UserController } from './user.controller';
 import { UsersDataAccess } from './users-data-access';
 import { UsersController } from './users.controller';
@@ -29,6 +30,7 @@ import { UsersService } from './users.service';
   controllers: [UsersController, UserController],
   providers: [
     AccessCredentialRepository,
+    AvatarFilePipe,
     UsersDataAccess,
     UsersService,
     JwtAuthGuard,

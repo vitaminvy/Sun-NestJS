@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { I18nService } from 'nestjs-i18n';
 
 import {
   FollowsDataAccess,
@@ -20,11 +21,18 @@ interface FollowStore {
   removeFollowing(followerId: number, followingId: number): Promise<void>;
 }
 
+interface TranslationService {
+  t(key: string): string;
+}
+
 @Injectable()
 export class FollowsService {
   constructor(
     @Inject(FollowsDataAccess)
     private readonly followsRepository: FollowStore,
+
+    @Inject(I18nService)
+    private readonly i18nService: TranslationService,
   ) {}
 
   async getProfile(
@@ -49,7 +57,9 @@ export class FollowsService {
     if (currentUser.id === profileUser.id) {
       throw new UnprocessableEntityException({
         errors: {
-          body: ['cannot follow yourself'],
+          body: [
+            this.i18nService.t('translation.FOLLOWS.ERRORS.CANNOT_FOLLOW_SELF'),
+          ],
         },
       });
     }
@@ -76,7 +86,11 @@ export class FollowsService {
     if (currentUser.id === profileUser.id) {
       throw new UnprocessableEntityException({
         errors: {
-          body: ['cannot unfollow yourself'],
+          body: [
+            this.i18nService.t(
+              'translation.FOLLOWS.ERRORS.CANNOT_UNFOLLOW_SELF',
+            ),
+          ],
         },
       });
     }
@@ -95,7 +109,9 @@ export class FollowsService {
     const user = await this.followsRepository.findUserById(userId);
 
     if (!user) {
-      throw new UnauthorizedException('Unauthorized');
+      throw new UnauthorizedException(
+        this.i18nService.t('translation.AUTH.ERRORS.UNAUTHORIZED'),
+      );
     }
 
     return user;
@@ -106,7 +122,9 @@ export class FollowsService {
       await this.followsRepository.findUserByUsername(username);
 
     if (!profileUser) {
-      throw new NotFoundException('Profile not found');
+      throw new NotFoundException(
+        this.i18nService.t('translation.FOLLOWS.ERRORS.PROFILE_NOT_FOUND'),
+      );
     }
 
     return profileUser;

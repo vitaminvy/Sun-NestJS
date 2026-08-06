@@ -6,6 +6,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { I18nService } from 'nestjs-i18n';
 
 import { RedisService } from '../../redis/redis.service';
 
@@ -23,7 +24,10 @@ interface LoginRateLimitRequest extends Request {
 
 @Injectable()
 export class LoginRateLimitGuard implements CanActivate {
-  constructor(private readonly redisService: RedisService) {}
+  constructor(
+    private readonly redisService: RedisService,
+    private readonly i18nService: I18nService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<LoginRateLimitRequest>();
@@ -40,7 +44,11 @@ export class LoginRateLimitGuard implements CanActivate {
       throw new HttpException(
         {
           errors: {
-            body: ['too many login attempts, please try again later'],
+            body: [
+              this.i18nService.t(
+                'translation.AUTH.ERRORS.TOO_MANY_LOGIN_ATTEMPTS',
+              ),
+            ],
           },
         },
         HttpStatus.TOO_MANY_REQUESTS,

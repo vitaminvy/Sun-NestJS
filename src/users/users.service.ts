@@ -31,6 +31,9 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { UserEntity } from './entities/user.entity';
 import { UsersDataAccess } from './users-data-access';
 
+const DEFAULT_JWT_EXPIRES_IN = '1d';
+const JWT_EXPIRES_IN_CONFIG_KEY = 'JWT_EXPIRES_IN';
+
 interface ConfigReader {
   get<T>(propertyPath: string, defaultValue: T): T;
 }
@@ -342,7 +345,9 @@ export class UsersService {
     if (!extension) {
       throw new UnprocessableEntityException({
         errors: {
-          body: ['avatar must be a gif, jpeg, png or webp'],
+          body: [
+            this.i18nService.t('translation.USERS.ERRORS.INVALID_AVATAR_TYPE'),
+          ],
         },
       });
     }
@@ -448,7 +453,7 @@ export class UsersService {
     }
 
     throw new InternalServerErrorException(
-      'Failed to update current user. Please retry later.',
+      this.i18nService.t('translation.USERS.ERRORS.UPDATE_FAILED'),
       {
         cause: error,
       },
@@ -456,7 +461,10 @@ export class UsersService {
   }
 
   private getJwtExpiresIn(): ms.StringValue {
-    return this.configService.get<ms.StringValue>('JWT_EXPIRES_IN', '1d');
+    return this.configService.get<ms.StringValue>(
+      JWT_EXPIRES_IN_CONFIG_KEY,
+      DEFAULT_JWT_EXPIRES_IN,
+    );
   }
 
   private createBodyErrorException(

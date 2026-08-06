@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayUnique,
   IsArray,
+  IsDefined,
   IsNotEmpty,
   IsString,
   ValidateIf,
@@ -35,6 +36,7 @@ export class CreateArticleDto {
 
 export class CreateArticleRequestDto {
   @ApiProperty({ type: CreateArticleDto })
+  @IsDefined()
   @ValidateNested()
   @Type(() => CreateArticleDto)
   article!: CreateArticleDto;

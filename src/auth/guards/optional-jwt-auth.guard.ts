@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { I18nService } from 'nestjs-i18n';
 
 import { RedisService } from '../../redis/redis.service';
 import { TOKEN_AUTH_SCHEME } from '../auth.constants';
@@ -19,6 +20,7 @@ export class OptionalJwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
+    private readonly i18nService: I18nService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -37,7 +39,9 @@ export class OptionalJwtAuthGuard implements CanActivate {
     const blacklisted = await client.get(token);
 
     if (blacklisted) {
-      throw new UnauthorizedException('Token has been revoked');
+      throw new UnauthorizedException(
+        this.i18nService.t('translation.AUTH.ERRORS.TOKEN_REVOKED'),
+      );
     }
 
     request.user = payload;
@@ -57,7 +61,9 @@ export class OptionalJwtAuthGuard implements CanActivate {
       OPTIONAL_JWT_GUARD_LOG_CONTEXT,
     );
 
-    throw new UnauthorizedException('Unauthorized');
+    throw new UnauthorizedException(
+      this.i18nService.t('translation.AUTH.ERRORS.UNAUTHORIZED'),
+    );
   }
 
   private extractToken(request: AuthenticatedRequest): string | undefined {

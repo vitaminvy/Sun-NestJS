@@ -1,6 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEmail, IsNotEmpty, IsString, ValidateNested } from 'class-validator';
+import {
+  IsDefined,
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 
 export class LoginUserDto {
   @ApiProperty({ example: 'john@example.com' })
@@ -16,6 +22,7 @@ export class LoginUserDto {
 
 export class LoginUserRequestDto {
   @ApiProperty({ type: LoginUserDto })
+  @IsDefined()
   @ValidateNested()
   @Type(() => LoginUserDto)
   user!: LoginUserDto;

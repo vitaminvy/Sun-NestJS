@@ -3,17 +3,28 @@
   "AUTH": {
     "ERRORS": {
       "UNAUTHORIZED": "Không được phép",
-      "TOKEN_REVOKED": "Token đã bị thu hồi"
+      "TOKEN_REVOKED": "Token đã bị thu hồi",
+      "TOO_MANY_LOGIN_ATTEMPTS": "Đăng nhập quá nhiều lần, vui lòng thử lại sau"
     }
   },
   "USERS": {
     "ERRORS": {
       "INVALID_EMAIL_OR_PASSWORD": "email hoặc mật khẩu không hợp lệ",
       "EMAIL_TAKEN": "email đã được sử dụng",
-      "USERNAME_TAKEN": "tên người dùng đã được sử dụng"
+      "USERNAME_TAKEN": "tên người dùng đã được sử dụng",
+      "INVALID_AVATAR_TYPE": "avatar phải là gif, jpeg, png hoặc webp",
+      "AVATAR_TOO_LARGE": "file avatar quá lớn",
+      "UPDATE_FAILED": "Cập nhật người dùng thất bại. Vui lòng thử lại sau."
     },
     "MESSAGES": {
       "ACCESS_CREDENTIAL_CLEARED": "Đăng xuất thành công"
+    }
+  },
+  "FOLLOWS": {
+    "ERRORS": {
+      "CANNOT_FOLLOW_SELF": "không thể follow chính mình",
+      "CANNOT_UNFOLLOW_SELF": "không thể unfollow chính mình",
+      "PROFILE_NOT_FOUND": "Không tìm thấy profile"
     }
   },
   "ARTICLES": {

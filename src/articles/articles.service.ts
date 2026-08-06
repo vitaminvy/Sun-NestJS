@@ -263,9 +263,9 @@ export class ArticlesService {
   }
 
   private normalizeUpdateArticleDto(
-    updateArticleBody?: UpdateArticleRequestDto,
+    updateArticleBody: UpdateArticleRequestDto,
   ): UpdateArticleDto {
-    return updateArticleBody?.article ?? {};
+    return updateArticleBody.article;
   }
 
   private normalizePagination(query: ListArticlesQueryDto): {

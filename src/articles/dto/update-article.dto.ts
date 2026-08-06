@@ -1,8 +1,9 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayUnique,
   IsArray,
+  IsDefined,
   IsNotEmpty,
   IsString,
   ValidateIf,
@@ -37,9 +38,9 @@ export class UpdateArticleDto {
 }
 
 export class UpdateArticleRequestDto {
-  @ApiPropertyOptional({ type: UpdateArticleDto })
-  @ValidateIf((_object, value) => value !== undefined)
+  @ApiProperty({ type: UpdateArticleDto })
+  @IsDefined()
   @ValidateNested()
   @Type(() => UpdateArticleDto)
-  article?: UpdateArticleDto;
+  article!: UpdateArticleDto;
 }

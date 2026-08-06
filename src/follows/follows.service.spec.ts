@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { I18nService } from 'nestjs-i18n';
 
 import { FollowsDataAccess } from './follows-data-access';
 import { FollowsService } from './follows.service';
@@ -13,6 +14,12 @@ describe('FollowsService', () => {
         {
           provide: FollowsDataAccess,
           useValue: {},
+        },
+        {
+          provide: I18nService,
+          useValue: {
+            t: (key: string) => key,
+          },
         },
       ],
     }).compile();
