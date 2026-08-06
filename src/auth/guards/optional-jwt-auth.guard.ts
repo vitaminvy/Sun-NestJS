@@ -2,13 +2,17 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
 import { RedisService } from '../../redis/redis.service';
+import { TOKEN_AUTH_SCHEME } from '../auth.constants';
 import type { JwtPayload } from '../interfaces/jwt-payload.interface';
 import type { AuthenticatedRequest } from './jwt-auth.guard';
+
+const OPTIONAL_JWT_GUARD_LOG_CONTEXT = 'OptionalJwtGuard';
 
 @Injectable()
 export class OptionalJwtAuthGuard implements CanActivate {
@@ -25,22 +29,35 @@ export class OptionalJwtAuthGuard implements CanActivate {
       return true;
     }
 
-    try {
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
-      const client = this.redisService.getClient();
-      const blacklisted = await client.get(token);
+    const payload = await this.jwtService
+      .verifyAsync<JwtPayload>(token)
+      .catch((error: unknown) => this.rejectInvalidToken(error));
 
-      if (blacklisted) {
-        throw new UnauthorizedException('Token has been revoked');
-      }
+    const client = this.redisService.getClient();
+    const blacklisted = await client.get(token);
 
-      request.user = payload;
-      request.token = token;
-
-      return true;
-    } catch {
-      throw new UnauthorizedException('Unauthorized');
+    if (blacklisted) {
+      throw new UnauthorizedException('Token has been revoked');
     }
+
+    request.user = payload;
+    request.token = token;
+
+    return true;
+  }
+
+  private rejectInvalidToken(error: unknown): never {
+    Logger.warn(
+      {
+        message:
+          'Optional JWT verification failed, so the request was rejected.',
+        guidance: 'Ask the client to request a fresh access credential.',
+        cause: error instanceof Error ? error.message : String(error),
+      },
+      OPTIONAL_JWT_GUARD_LOG_CONTEXT,
+    );
+
+    throw new UnauthorizedException('Unauthorized');
   }
 
   private extractToken(request: AuthenticatedRequest): string | undefined {
@@ -52,7 +69,7 @@ export class OptionalJwtAuthGuard implements CanActivate {
 
     const [scheme, token] = authorization.split(' ');
 
-    if (scheme !== 'Token' || !token) {
+    if (scheme !== TOKEN_AUTH_SCHEME || !token) {
       return undefined;
     }
 
