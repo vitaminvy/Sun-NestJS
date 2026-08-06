@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 
 import { UserEntity } from '../users/entities/user.entity';
 import { ListArticlesQueryDto } from './dto/list-articles-query.dto';
@@ -28,6 +28,8 @@ export interface ArticleIdRow {
 export interface AuthorIdRow {
   authorId: number | string;
 }
+
+type ArticleQueryBuilder = SelectQueryBuilder<ArticleEntity>;
 
 @Injectable()
 export class ArticlesRepository {
@@ -84,33 +86,9 @@ export class ArticlesRepository {
       .skip(offset)
       .take(limit);
 
-    if (query.tag) {
-      queryBuilder.innerJoin(
-        'article.tags',
-        'filterTag',
-        'filterTag.name = :tag',
-        {
-          tag: query.tag.trim(),
-        },
-      );
-    }
-
-    if (query.author) {
-      queryBuilder.andWhere('author.username = :author', {
-        author: query.author.trim(),
-      });
-    }
-
-    if (query.favorited) {
-      queryBuilder.innerJoin(
-        'article.favoritedBy',
-        'favoritedUser',
-        'favoritedUser.username = :favorited',
-        {
-          favorited: query.favorited.trim(),
-        },
-      );
-    }
+    this.withTagFilter(queryBuilder, query.tag);
+    this.withAuthorFilter(queryBuilder, query.author);
+    this.withFavoritedFilter(queryBuilder, query.favorited);
 
     return queryBuilder.getManyAndCount();
   }
@@ -239,5 +217,51 @@ export class ArticlesRepository {
       .where('user.id = :currentUserId', { currentUserId })
       .andWhere('following.id IN (:...authorIds)', { authorIds })
       .getRawMany<AuthorIdRow>();
+  }
+
+  private withTagFilter(queryBuilder: ArticleQueryBuilder, tag?: string): void {
+    if (!tag) {
+      return;
+    }
+
+    queryBuilder.innerJoin(
+      'article.tags',
+      'filterTag',
+      'filterTag.name = :tag',
+      {
+        tag: tag.trim(),
+      },
+    );
+  }
+
+  private withAuthorFilter(
+    queryBuilder: ArticleQueryBuilder,
+    author?: string,
+  ): void {
+    if (!author) {
+      return;
+    }
+
+    queryBuilder.andWhere('author.username = :author', {
+      author: author.trim(),
+    });
+  }
+
+  private withFavoritedFilter(
+    queryBuilder: ArticleQueryBuilder,
+    favorited?: string,
+  ): void {
+    if (!favorited) {
+      return;
+    }
+
+    queryBuilder.innerJoin(
+      'article.favoritedBy',
+      'favoritedUser',
+      'favoritedUser.username = :favorited',
+      {
+        favorited: favorited.trim(),
+      },
+    );
   }
 }

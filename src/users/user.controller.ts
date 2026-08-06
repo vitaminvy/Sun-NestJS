@@ -10,7 +10,6 @@ import {
   ParseFilePipe,
   Post,
   Put,
-  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -23,9 +22,8 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Response } from 'express';
 
-import { AUTH_TOKEN_COOKIE_NAME, USER_EXIT_PATH } from '../auth/auth.constants';
+import { USER_EXIT_PATH } from '../auth/auth.constants';
 import { CurrentToken } from '../auth/decorators/current-token.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -63,10 +61,7 @@ export class UserController {
   @useantiCacheHeaders()
   blacklistCurrentToken(
     @CurrentToken() credential: string,
-    @Res({ passthrough: true }) res: Response,
   ): Promise<{ message: string }> {
-    res.clearCookie(AUTH_TOKEN_COOKIE_NAME);
-
     return this.usersService.storeRevokedAccessCredential(credential);
   }
 
