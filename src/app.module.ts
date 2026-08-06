@@ -6,8 +6,9 @@ import { join } from 'node:path';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UsersModule } from './users/users.module';
+import { ArticlesModule } from './articles/articles.module';
 import { FollowsModule } from './follows/follows.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { FollowsModule } from './follows/follows.module';
     }),
     UsersModule,
     FollowsModule,
+    ArticlesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
