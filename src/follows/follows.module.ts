@@ -2,12 +2,13 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import type ms from 'ms';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
+import { createJwtModuleOptions } from '../auth/jwt-module-options.factory';
 import { RedisModule } from '../redis/redis.module';
 import { UserEntity } from '../users/entities/user.entity';
+import { FollowsDataAccess } from './follows-data-access';
 import { FollowsService } from './follows.service';
 import { ProfilesController } from './profiles.controller';
 
@@ -17,30 +18,17 @@ import { ProfilesController } from './profiles.controller';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        const secret = configService.get<string>('JWT_SECRET')?.trim();
-
-        if (!secret) {
-          throw new Error('JWT_SECRET must be set');
-        }
-
-        const expiresIn = configService.get<ms.StringValue>(
-          'JWT_EXPIRES_IN',
-          '1d',
-        );
-
-        return {
-          secret,
-          signOptions: {
-            expiresIn,
-          },
-        };
-      },
+      useFactory: createJwtModuleOptions,
     }),
     RedisModule,
   ],
   controllers: [ProfilesController],
-  providers: [FollowsService, JwtAuthGuard, OptionalJwtAuthGuard],
+  providers: [
+    FollowsDataAccess,
+    FollowsService,
+    JwtAuthGuard,
+    OptionalJwtAuthGuard,
+  ],
   exports: [FollowsService],
 })
 export class FollowsModule {}

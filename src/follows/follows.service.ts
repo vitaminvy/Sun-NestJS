@@ -1,29 +1,39 @@
 import {
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 
-import { UserEntity } from '../users/entities/user.entity';
+import {
+  FollowsDataAccess,
+  type FollowUserRecord,
+} from './follows-data-access';
 import { ProfileResponse } from './interfaces/profile-response.interface';
+
+interface FollowStore {
+  addFollowing(followerId: number, followingId: number): Promise<void>;
+  findUserById(userId: number): Promise<FollowUserRecord | null>;
+  findUserByUsername(username: string): Promise<FollowUserRecord | null>;
+  hasFollowing(followerId: number, followingId: number): Promise<boolean>;
+  removeFollowing(followerId: number, followingId: number): Promise<void>;
+}
 
 @Injectable()
 export class FollowsService {
   constructor(
-    @InjectRepository(UserEntity)
-    private readonly usersRepository: Repository<UserEntity>,
+    @Inject(FollowsDataAccess)
+    private readonly followsRepository: FollowStore,
   ) {}
 
   async getProfile(
     username: string,
     currentUserId?: number,
   ): Promise<ProfileResponse> {
-    const profileUser = await this.findProfileUser(username);
+    const profileUser = await this.loadProfileUser(username);
     const following = currentUserId
-      ? await this.isFollowing(currentUserId, profileUser.id)
+      ? await this.checkFollowing(currentUserId, profileUser.id)
       : false;
 
     return this.buildProfileResponse(profileUser, following);
@@ -33,8 +43,8 @@ export class FollowsService {
     currentUserId: number,
     username: string,
   ): Promise<ProfileResponse> {
-    const currentUser = await this.findAuthenticatedUser(currentUserId);
-    const profileUser = await this.findProfileUser(username);
+    const currentUser = await this.loadAuthenticatedUser(currentUserId);
+    const profileUser = await this.loadProfileUser(username);
 
     if (currentUser.id === profileUser.id) {
       throw new UnprocessableEntityException({
@@ -44,17 +54,13 @@ export class FollowsService {
       });
     }
 
-    const existingFollow = await this.isFollowing(
+    const existingFollow = await this.checkFollowing(
       currentUser.id,
       profileUser.id,
     );
 
     if (!existingFollow) {
-      await this.usersRepository
-        .createQueryBuilder()
-        .relation(UserEntity, 'following')
-        .of(currentUser.id)
-        .add(profileUser.id);
+      await this.followsRepository.addFollowing(currentUser.id, profileUser.id);
     }
 
     return this.buildProfileResponse(profileUser, true);
@@ -64,8 +70,8 @@ export class FollowsService {
     currentUserId: number,
     username: string,
   ): Promise<ProfileResponse> {
-    const currentUser = await this.findAuthenticatedUser(currentUserId);
-    const profileUser = await this.findProfileUser(username);
+    const currentUser = await this.loadAuthenticatedUser(currentUserId);
+    const profileUser = await this.loadProfileUser(username);
 
     if (currentUser.id === profileUser.id) {
       throw new UnprocessableEntityException({
@@ -75,19 +81,18 @@ export class FollowsService {
       });
     }
 
-    await this.usersRepository
-      .createQueryBuilder()
-      .relation(UserEntity, 'following')
-      .of(currentUser.id)
-      .remove(profileUser.id);
+    await this.followsRepository.removeFollowing(
+      currentUser.id,
+      profileUser.id,
+    );
 
     return this.buildProfileResponse(profileUser, false);
   }
 
-  private async findAuthenticatedUser(userId: number): Promise<UserEntity> {
-    const user = await this.usersRepository.findOne({
-      where: { id: userId },
-    });
+  private async loadAuthenticatedUser(
+    userId: number,
+  ): Promise<FollowUserRecord> {
+    const user = await this.followsRepository.findUserById(userId);
 
     if (!user) {
       throw new UnauthorizedException('Unauthorized');
@@ -96,10 +101,9 @@ export class FollowsService {
     return user;
   }
 
-  private async findProfileUser(username: string): Promise<UserEntity> {
-    const profileUser = await this.usersRepository.findOne({
-      where: { username },
-    });
+  private async loadProfileUser(username: string): Promise<FollowUserRecord> {
+    const profileUser =
+      await this.followsRepository.findUserByUsername(username);
 
     if (!profileUser) {
       throw new NotFoundException('Profile not found');
@@ -108,7 +112,7 @@ export class FollowsService {
     return profileUser;
   }
 
-  private async isFollowing(
+  private async checkFollowing(
     followerId: number,
     followingId: number,
   ): Promise<boolean> {
@@ -116,19 +120,11 @@ export class FollowsService {
       return false;
     }
 
-    const follow = await this.usersRepository
-      .createQueryBuilder('user')
-      .innerJoin('user.following', 'following', 'following.id = :followingId', {
-        followingId,
-      })
-      .where('user.id = :followerId', { followerId })
-      .getOne();
-
-    return Boolean(follow);
+    return this.followsRepository.hasFollowing(followerId, followingId);
   }
 
   private buildProfileResponse(
-    user: UserEntity,
+    user: FollowUserRecord,
     following: boolean,
   ): ProfileResponse {
     return {

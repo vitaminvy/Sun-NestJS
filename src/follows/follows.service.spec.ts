@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
 
-import { UserEntity } from '../users/entities/user.entity';
+import { FollowsDataAccess } from './follows-data-access';
 import { FollowsService } from './follows.service';
 
 describe('FollowsService', () => {
@@ -12,7 +11,7 @@ describe('FollowsService', () => {
       providers: [
         FollowsService,
         {
-          provide: getRepositoryToken(UserEntity),
+          provide: FollowsDataAccess,
           useValue: {},
         },
       ],
