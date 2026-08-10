@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -19,6 +20,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { I18nService } from 'nestjs-i18n';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedRequest } from '../auth/guards/jwt-auth.guard';
@@ -30,6 +32,11 @@ import {
   ArticleResponseDto,
   ArticlesResponseDto,
 } from './dto/article-response.dto';
+import {
+  CommentResponseDto,
+  CommentsResponseDto,
+} from './dto/comment-response.dto';
+import { CreateCommentRequestDto } from './dto/create-comment.dto';
 import { CreateArticleRequestDto } from './dto/create-article.dto';
 import { ListArticlesQueryDto } from './dto/list-articles-query.dto';
 import { UpdateArticleRequestDto } from './dto/update-article.dto';
@@ -37,7 +44,10 @@ import { UpdateArticleRequestDto } from './dto/update-article.dto';
 @ApiTags('Articles')
 @Controller('articles')
 export class ArticlesController {
-  constructor(private readonly articlesService: ArticlesService) {}
+  constructor(
+    private readonly articlesService: ArticlesService,
+    private readonly i18nService: I18nService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -130,5 +140,63 @@ export class ArticlesController {
     @CurrentUser() currentUser: JwtPayload,
   ): Promise<ArticleResponseDto> {
     return this.articlesService.unfavoriteArticle(slug, currentUser.sub);
+  }
+
+  @Post(':slug/comments')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Add comment to article' })
+  @ApiBody({ type: CreateCommentRequestDto })
+  @ApiCreatedResponse({ type: CommentResponseDto })
+  addComment(
+    @Param('slug') slug: string,
+    @CurrentUser() currentUser: JwtPayload,
+    @Body() body: CreateCommentRequestDto,
+  ): Promise<CommentResponseDto> {
+    return this.articlesService.addComment(slug, currentUser.sub, body.comment);
+  }
+
+  @Get(':slug/comments')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: 'Get comments from article' })
+  @ApiOkResponse({ type: CommentsResponseDto })
+  getComments(
+    @Param('slug') slug: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<CommentsResponseDto> {
+    return this.articlesService.getComments(slug, request.user?.sub);
+  }
+
+  @Delete(':slug/comments/:id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Delete comment' })
+  deleteComment(
+    @Param('slug') slug: string,
+    @Param('id') commentId: string,
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<void> {
+    return this.articlesService.deleteComment(
+      slug,
+      this.parseCommentId(commentId),
+      currentUser.sub,
+    );
+  }
+
+  private parseCommentId(commentId: string): number {
+    const parsedCommentId = Number(commentId);
+
+    if (
+      !/^\d+$/.test(commentId) ||
+      !Number.isSafeInteger(parsedCommentId) ||
+      parsedCommentId < 1
+    ) {
+      throw new BadRequestException({
+        errors: {
+          id: [this.i18nService.t('translation.COMMENTS.ERRORS.INVALID_ID')],
+        },
+      });
+    }
+
+    return parsedCommentId;
   }
 }

@@ -19,17 +19,29 @@ import {
   ArticleResponseDto,
   ArticlesResponseDto,
 } from './dto/article-response.dto';
+import {
+  CommentResponseDataDto,
+  CommentResponseDto,
+  CommentsResponseDto,
+} from './dto/comment-response.dto';
+import { CreateCommentDto } from './dto/create-comment.dto';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { ListArticlesQueryDto } from './dto/list-articles-query.dto';
 import {
   UpdateArticleDto,
   UpdateArticleRequestDto,
 } from './dto/update-article.dto';
+import { ArticleCommentEntity } from './entities/article-comment.entity';
 import { ArticleTagEntity } from './entities/article-tag.entity';
 import { ArticleEntity } from './entities/article.entity';
 
 interface ArticleStore {
   addFavorite(articleId: number, userId: number): Promise<void>;
+  createComment(commentData: {
+    body: string;
+    article: ArticleEntity;
+    author: UserEntity;
+  }): ArticleCommentEntity;
   createArticle(articleData: {
     title: string;
     description: string;
@@ -45,6 +57,11 @@ interface ArticleStore {
     limit: number,
     offset: number,
   ): Promise<[ArticleEntity[], number]>;
+  findCommentByIdAndArticleId(
+    commentId: number,
+    articleId: number,
+  ): Promise<ArticleCommentEntity | null>;
+  findCommentsByArticleId(articleId: number): Promise<ArticleCommentEntity[]>;
   findFavoriteCounts(articleIds: number[]): Promise<ArticleFavoriteCountRow[]>;
   findFavoritedArticleIds(
     articleIds: number[],
@@ -63,8 +80,10 @@ interface ArticleStore {
   findUserById(userId: number): Promise<UserEntity | null>;
   isArticleFavoritedByUser(articleId: number, userId: number): Promise<boolean>;
   removeArticle(article: ArticleEntity): Promise<void>;
+  removeComment(comment: ArticleCommentEntity): Promise<void>;
   removeFavorite(articleId: number, userId: number): Promise<void>;
   saveArticle(article: ArticleEntity): Promise<ArticleEntity>;
+  saveComment(comment: ArticleCommentEntity): Promise<ArticleCommentEntity>;
   saveTag(tag: ArticleTagEntity): Promise<ArticleTagEntity>;
   slugExists(slug: string, articleIdToIgnore?: number): Promise<boolean>;
 }
@@ -227,6 +246,55 @@ export class ArticlesService {
     return this.getArticle(slug, currentUserId);
   }
 
+  async addComment(
+    slug: string,
+    currentUserId: number,
+    createCommentDto: CreateCommentDto,
+  ): Promise<CommentResponseDto> {
+    const [article, author] = await Promise.all([
+      this.findArticleBySlug(slug),
+      this.findAuthenticatedUser(currentUserId),
+    ]);
+    const comment = this.articlesRepository.createComment({
+      body: createCommentDto.body.trim(),
+      article,
+      author,
+    });
+    const savedComment = await this.articlesRepository.saveComment(comment);
+
+    return this.buildCommentResponse(savedComment, currentUserId);
+  }
+
+  async getComments(
+    slug: string,
+    currentUserId?: number,
+  ): Promise<CommentsResponseDto> {
+    const article = await this.findArticleBySlug(slug);
+    const comments = await this.articlesRepository.findCommentsByArticleId(
+      article.id,
+    );
+
+    return this.buildCommentsResponse(comments, currentUserId);
+  }
+
+  async deleteComment(
+    slug: string,
+    commentId: number,
+    currentUserId: number,
+  ): Promise<void> {
+    await this.findAuthenticatedUser(currentUserId);
+
+    const article = await this.findArticleBySlug(slug);
+    const comment = await this.findCommentByIdAndArticleId(
+      commentId,
+      article.id,
+    );
+
+    this.assertCanManageComment(comment, currentUserId);
+
+    await this.articlesRepository.removeComment(comment);
+  }
+
   private async findAuthenticatedUser(userId: number): Promise<UserEntity> {
     const user = await this.articlesRepository.findUserById(userId);
 
@@ -251,6 +319,24 @@ export class ArticlesService {
     return article;
   }
 
+  private async findCommentByIdAndArticleId(
+    commentId: number,
+    articleId: number,
+  ): Promise<ArticleCommentEntity> {
+    const comment = await this.articlesRepository.findCommentByIdAndArticleId(
+      commentId,
+      articleId,
+    );
+
+    if (!comment) {
+      throw new NotFoundException(
+        this.i18nService.t('translation.COMMENTS.ERRORS.NOT_FOUND'),
+      );
+    }
+
+    return comment;
+  }
+
   private assertCanManageArticle(
     article: ArticleEntity,
     currentUserId: number,
@@ -258,6 +344,17 @@ export class ArticlesService {
     if (article.author.id !== currentUserId) {
       throw new ForbiddenException(
         this.i18nService.t('translation.ARTICLES.ERRORS.FORBIDDEN'),
+      );
+    }
+  }
+
+  private assertCanManageComment(
+    comment: ArticleCommentEntity,
+    currentUserId: number,
+  ): void {
+    if (comment.author.id !== currentUserId) {
+      throw new ForbiddenException(
+        this.i18nService.t('translation.COMMENTS.ERRORS.FORBIDDEN'),
       );
     }
   }
@@ -416,6 +513,47 @@ export class ArticlesService {
     });
 
     return new ArticlesResponseDto(articleDtos, articlesCount);
+  }
+
+  private async buildCommentResponse(
+    comment: ArticleCommentEntity,
+    currentUserId?: number,
+  ): Promise<CommentResponseDto> {
+    const followingAuthorIds = await this.getFollowingAuthorIds(
+      [comment.author.id],
+      currentUserId,
+    );
+
+    return new CommentResponseDto(
+      comment,
+      followingAuthorIds.has(comment.author.id),
+    );
+  }
+
+  private async buildCommentsResponse(
+    comments: ArticleCommentEntity[],
+    currentUserId?: number,
+  ): Promise<CommentsResponseDto> {
+    if (comments.length === 0) {
+      return new CommentsResponseDto([]);
+    }
+
+    const authorIds = [
+      ...new Set(comments.map((comment) => comment.author.id)),
+    ];
+    const followingAuthorIds = await this.getFollowingAuthorIds(
+      authorIds,
+      currentUserId,
+    );
+    const commentDtos = comments.map(
+      (comment) =>
+        new CommentResponseDataDto(
+          comment,
+          followingAuthorIds.has(comment.author.id),
+        ),
+    );
+
+    return new CommentsResponseDto(commentDtos);
   }
 
   private async getFavoriteStats(

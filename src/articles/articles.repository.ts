@@ -4,6 +4,7 @@ import { Repository, SelectQueryBuilder } from 'typeorm';
 
 import { UserEntity } from '../users/entities/user.entity';
 import { ListArticlesQueryDto } from './dto/list-articles-query.dto';
+import { ArticleCommentEntity } from './entities/article-comment.entity';
 import { ArticleTagEntity } from './entities/article-tag.entity';
 import { ArticleEntity } from './entities/article.entity';
 
@@ -14,6 +15,12 @@ interface CreateArticleData {
   slug: string;
   author: UserEntity;
   tags: ArticleTagEntity[];
+}
+
+interface CreateCommentData {
+  body: string;
+  article: ArticleEntity;
+  author: UserEntity;
 }
 
 export interface ArticleFavoriteCountRow {
@@ -40,6 +47,9 @@ export class ArticlesRepository {
     @InjectRepository(ArticleTagEntity)
     private readonly articleTagsRepository: Repository<ArticleTagEntity>,
 
+    @InjectRepository(ArticleCommentEntity)
+    private readonly articleCommentsRepository: Repository<ArticleCommentEntity>,
+
     @InjectRepository(UserEntity)
     private readonly usersRepository: Repository<UserEntity>,
   ) {}
@@ -56,6 +66,18 @@ export class ArticlesRepository {
     await this.articlesRepository.remove(article);
   }
 
+  createComment(commentData: CreateCommentData): ArticleCommentEntity {
+    return this.articleCommentsRepository.create(commentData);
+  }
+
+  saveComment(comment: ArticleCommentEntity): Promise<ArticleCommentEntity> {
+    return this.articleCommentsRepository.save(comment);
+  }
+
+  async removeComment(comment: ArticleCommentEntity): Promise<void> {
+    await this.articleCommentsRepository.remove(comment);
+  }
+
   findUserById(userId: number): Promise<UserEntity | null> {
     return this.usersRepository.findOne({
       where: { id: userId },
@@ -68,6 +90,37 @@ export class ArticlesRepository {
       relations: {
         author: true,
         tags: true,
+      },
+    });
+  }
+
+  findCommentsByArticleId(articleId: number): Promise<ArticleCommentEntity[]> {
+    return this.articleCommentsRepository.find({
+      where: {
+        article: { id: articleId },
+      },
+      relations: {
+        author: true,
+      },
+      order: {
+        createdAt: 'ASC',
+        id: 'ASC',
+      },
+    });
+  }
+
+  findCommentByIdAndArticleId(
+    commentId: number,
+    articleId: number,
+  ): Promise<ArticleCommentEntity | null> {
+    return this.articleCommentsRepository.findOne({
+      where: {
+        id: commentId,
+        article: { id: articleId },
+      },
+      relations: {
+        author: true,
+        article: true,
       },
     });
   }

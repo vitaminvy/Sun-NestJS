@@ -11,12 +11,18 @@ import { UserEntity } from '../users/entities/user.entity';
 import { ArticlesRepository } from './articles.repository';
 import { ArticlesController } from './articles.controller';
 import { ArticlesService } from './articles.service';
+import { ArticleCommentEntity } from './entities/article-comment.entity';
 import { ArticleTagEntity } from './entities/article-tag.entity';
 import { ArticleEntity } from './entities/article.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ArticleEntity, ArticleTagEntity, UserEntity]),
+    TypeOrmModule.forFeature([
+      ArticleEntity,
+      ArticleTagEntity,
+      ArticleCommentEntity,
+      UserEntity,
+    ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
