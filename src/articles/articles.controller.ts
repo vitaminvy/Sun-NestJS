@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -20,7 +19,6 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { I18nService } from 'nestjs-i18n';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedRequest } from '../auth/guards/jwt-auth.guard';
@@ -44,10 +42,7 @@ import { UpdateArticleRequestDto } from './dto/update-article.dto';
 @ApiTags('Articles')
 @Controller('articles')
 export class ArticlesController {
-  constructor(
-    private readonly articlesService: ArticlesService,
-    private readonly i18nService: I18nService,
-  ) {}
+  constructor(private readonly articlesService: ArticlesService) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -175,28 +170,6 @@ export class ArticlesController {
     @Param('id') commentId: string,
     @CurrentUser() currentUser: JwtPayload,
   ): Promise<void> {
-    return this.articlesService.deleteComment(
-      slug,
-      this.parseCommentId(commentId),
-      currentUser.sub,
-    );
-  }
-
-  private parseCommentId(commentId: string): number {
-    const parsedCommentId = Number(commentId);
-
-    if (
-      !/^\d+$/.test(commentId) ||
-      !Number.isSafeInteger(parsedCommentId) ||
-      parsedCommentId < 1
-    ) {
-      throw new BadRequestException({
-        errors: {
-          id: [this.i18nService.t('translation.COMMENTS.ERRORS.INVALID_ID')],
-        },
-      });
-    }
-
-    return parsedCommentId;
+    return this.articlesService.deleteComment(slug, commentId, currentUser.sub);
   }
 }

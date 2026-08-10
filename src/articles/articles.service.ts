@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -279,14 +280,16 @@ export class ArticlesService {
 
   async deleteComment(
     slug: string,
-    commentId: number,
+    commentId: string,
     currentUserId: number,
   ): Promise<void> {
+    const parsedCommentId = this.parseCommentId(commentId);
+
     await this.findAuthenticatedUser(currentUserId);
 
     const article = await this.findArticleBySlug(slug);
     const comment = await this.findCommentByIdAndArticleId(
-      commentId,
+      parsedCommentId,
       article.id,
     );
 
@@ -317,6 +320,24 @@ export class ArticlesService {
     }
 
     return article;
+  }
+
+  private parseCommentId(commentId: string): number {
+    const parsedCommentId = Number(commentId);
+
+    if (
+      !/^\d+$/.test(commentId) ||
+      !Number.isSafeInteger(parsedCommentId) ||
+      parsedCommentId < 1
+    ) {
+      throw new BadRequestException({
+        errors: {
+          id: [this.i18nService.t('translation.COMMENTS.ERRORS.INVALID_ID')],
+        },
+      });
+    }
+
+    return parsedCommentId;
   }
 
   private async findCommentByIdAndArticleId(

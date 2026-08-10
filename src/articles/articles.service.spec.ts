@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { I18nService } from 'nestjs-i18n';
 
@@ -178,13 +178,27 @@ describe('ArticlesService', () => {
     repository.findArticleBySlug.mockResolvedValue(article);
     repository.findCommentByIdAndArticleId.mockResolvedValue(comment);
 
-    await service.deleteComment(article.slug, comment.id, currentUser.id);
+    await service.deleteComment(
+      article.slug,
+      String(comment.id),
+      currentUser.id,
+    );
 
     expect(repository.findCommentByIdAndArticleId).toHaveBeenCalledWith(
       comment.id,
       article.id,
     );
     expect(repository.removeComment).toHaveBeenCalledWith(comment);
+  });
+
+  it('rejects an invalid comment id', async () => {
+    await expect(
+      service.deleteComment('how-to-train-your-dragon', 'not-a-number', 1),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(repository.findUserById).not.toHaveBeenCalled();
+    expect(repository.findArticleBySlug).not.toHaveBeenCalled();
+    expect(repository.findCommentByIdAndArticleId).not.toHaveBeenCalled();
+    expect(repository.removeComment).not.toHaveBeenCalled();
   });
 
   it('blocks deleting another user comment', async () => {
@@ -201,7 +215,7 @@ describe('ArticlesService', () => {
     repository.findCommentByIdAndArticleId.mockResolvedValue(comment);
 
     await expect(
-      service.deleteComment(article.slug, comment.id, currentUser.id),
+      service.deleteComment(article.slug, String(comment.id), currentUser.id),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(repository.removeComment).not.toHaveBeenCalled();
   });
