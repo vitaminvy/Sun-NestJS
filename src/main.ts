@@ -1,10 +1,11 @@
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { I18nValidationExceptionFilter, I18nValidationPipe } from 'nestjs-i18n';
 import { mkdirSync } from 'node:fs';
 
 import { AppModule } from './app.module';
+import { formatI18nValidationErrors } from './common/i18n/i18n-validation-error-formatter';
 import {
   PUBLIC_ROOT,
   PUBLIC_URL_PREFIX,
@@ -22,10 +23,15 @@ async function bootstrap() {
   });
 
   app.useGlobalPipes(
-    new ValidationPipe({
+    new I18nValidationPipe({
       whitelist: true,
       transform: true,
       forbidNonWhitelisted: true,
+    }),
+  );
+  app.useGlobalFilters(
+    new I18nValidationExceptionFilter({
+      errorFormatter: formatI18nValidationErrors,
     }),
   );
 
