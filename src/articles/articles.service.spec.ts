@@ -122,6 +122,7 @@ describe('ArticlesService', () => {
       author,
     });
     expect(repository.saveComment).toHaveBeenCalledWith(unsavedComment);
+    expect(response.message).toBe('translation.COMMENTS.MESSAGES.ADDED');
     expect(response.comment).toMatchObject({
       id: savedComment.id,
       body: savedComment.body,
@@ -178,7 +179,7 @@ describe('ArticlesService', () => {
     repository.findArticleBySlug.mockResolvedValue(article);
     repository.findCommentByIdAndArticleId.mockResolvedValue(comment);
 
-    await service.deleteComment(
+    const response = await service.deleteComment(
       article.slug,
       String(comment.id),
       currentUser.id,
@@ -189,6 +190,7 @@ describe('ArticlesService', () => {
       article.id,
     );
     expect(repository.removeComment).toHaveBeenCalledWith(comment);
+    expect(response.message).toBe('translation.COMMENTS.MESSAGES.DELETED');
   });
 
   it('rejects an invalid comment id', async () => {

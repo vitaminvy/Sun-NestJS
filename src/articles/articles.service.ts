@@ -24,6 +24,7 @@ import {
   CommentResponseDataDto,
   CommentResponseDto,
   CommentsResponseDto,
+  DeleteCommentResponseDto,
 } from './dto/comment-response.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CreateArticleDto } from './dto/create-article.dto';
@@ -282,7 +283,7 @@ export class ArticlesService {
     slug: string,
     commentId: string,
     currentUserId: number,
-  ): Promise<void> {
+  ): Promise<DeleteCommentResponseDto> {
     const parsedCommentId = this.parseCommentId(commentId);
 
     await this.findAuthenticatedUser(currentUserId);
@@ -296,6 +297,10 @@ export class ArticlesService {
     this.assertCanManageComment(comment, currentUserId);
 
     await this.articlesRepository.removeComment(comment);
+
+    return new DeleteCommentResponseDto(
+      this.i18nService.t('translation.COMMENTS.MESSAGES.DELETED'),
+    );
   }
 
   private async findAuthenticatedUser(userId: number): Promise<UserEntity> {
@@ -546,6 +551,7 @@ export class ArticlesService {
     );
 
     return new CommentResponseDto(
+      this.i18nService.t('translation.COMMENTS.MESSAGES.ADDED'),
       comment,
       followingAuthorIds.has(comment.author.id),
     );

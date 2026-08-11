@@ -50,11 +50,28 @@ export class CommentResponseDataDto {
 }
 
 export class CommentResponseDto {
+  @ApiProperty({ example: 'Comment added successfully' })
+  message!: string;
+
   @ApiProperty({ type: CommentResponseDataDto })
   comment!: CommentResponseDataDto;
 
-  constructor(comment: ArticleCommentEntity, following: boolean) {
+  constructor(
+    message: string,
+    comment: ArticleCommentEntity,
+    following: boolean,
+  ) {
+    this.message = message;
     this.comment = new CommentResponseDataDto(comment, following);
+  }
+}
+
+export class DeleteCommentResponseDto {
+  @ApiProperty({ example: 'Comment deleted successfully' })
+  message!: string;
+
+  constructor(message: string) {
+    this.message = message;
   }
 }
 

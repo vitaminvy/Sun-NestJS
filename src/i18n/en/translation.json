@@ -52,6 +52,10 @@
       "NOT_FOUND": "Comment not found",
       "FORBIDDEN": "You can only manage your own comments",
       "INVALID_ID": "Comment id must be a positive integer"
+    },
+    "MESSAGES": {
+      "ADDED": "Comment added successfully",
+      "DELETED": "Comment deleted successfully"
     }
   }
 }

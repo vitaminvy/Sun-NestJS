@@ -33,6 +33,7 @@ import {
 import {
   CommentResponseDto,
   CommentsResponseDto,
+  DeleteCommentResponseDto,
 } from './dto/comment-response.dto';
 import { CreateCommentRequestDto } from './dto/create-comment.dto';
 import { CreateArticleRequestDto } from './dto/create-article.dto';
@@ -165,11 +166,12 @@ export class ArticlesController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Delete comment' })
+  @ApiOkResponse({ type: DeleteCommentResponseDto })
   deleteComment(
     @Param('slug') slug: string,
     @Param('id') commentId: string,
     @CurrentUser() currentUser: JwtPayload,
-  ): Promise<void> {
+  ): Promise<DeleteCommentResponseDto> {
     return this.articlesService.deleteComment(slug, commentId, currentUser.sub);
   }
 }

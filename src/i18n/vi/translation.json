@@ -52,6 +52,10 @@
       "NOT_FOUND": "Không tìm thấy bình luận",
       "FORBIDDEN": "Bạn chỉ có thể quản lý bình luận của chính mình",
       "INVALID_ID": "Id bình luận phải là số nguyên dương"
+    },
+    "MESSAGES": {
+      "ADDED": "Thêm bình luận thành công",
+      "DELETED": "Xóa bình luận thành công"
     }
   }
 }
