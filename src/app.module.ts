@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
+import { FollowsModule } from './follows/follows.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { UsersModule } from './users/users.module';
       resolvers: [new QueryResolver(['lang'])],
     }),
     UsersModule,
+    FollowsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

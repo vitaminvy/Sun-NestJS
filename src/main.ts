@@ -1,13 +1,25 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { mkdirSync } from 'node:fs';
 
 import { AppModule } from './app.module';
+import {
+  PUBLIC_ROOT,
+  PUBLIC_URL_PREFIX,
+  USER_AVATAR_UPLOAD_DIR,
+} from './uploads/upload.constants';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  mkdirSync(USER_AVATAR_UPLOAD_DIR, { recursive: true });
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.setGlobalPrefix('api');
+  app.useStaticAssets(PUBLIC_ROOT, {
+    prefix: `${PUBLIC_URL_PREFIX}/`,
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
