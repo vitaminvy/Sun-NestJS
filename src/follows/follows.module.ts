@@ -6,16 +6,15 @@ import type ms from 'ms';
 
 import { AttachmentEntity } from '../attachments/entities/attachment.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { RedisModule } from '../redis/redis.module';
-import { UserEntity } from './entities/user.entity';
-import { UserController } from './user.controller';
-import { UsersController } from './users.controller';
-import { UsersService } from './users.service';
+import { UserEntity } from '../users/entities/user.entity';
+import { FollowsService } from './follows.service';
+import { ProfilesController } from './profiles.controller';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([AttachmentEntity, UserEntity]),
-
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -41,8 +40,8 @@ import { UsersService } from './users.service';
     }),
     RedisModule,
   ],
-  controllers: [UsersController, UserController],
-  providers: [UsersService, JwtAuthGuard],
-  exports: [UsersService],
+  controllers: [ProfilesController],
+  providers: [FollowsService, JwtAuthGuard, OptionalJwtAuthGuard],
+  exports: [FollowsService],
 })
-export class UsersModule {}
+export class FollowsModule {}

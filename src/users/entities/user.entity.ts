@@ -2,6 +2,8 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinTable,
+  ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -23,8 +25,28 @@ export class UserEntity {
   @Column({ type: 'text', nullable: true })
   bio!: string | null;
 
-  @Column({ type: 'varchar', nullable: true, length: 500 })
-  image!: string | null;
+  @ManyToMany(() => UserEntity, (user) => user.followers, {
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+  })
+  @JoinTable({
+    name: 'user_follows',
+    joinColumn: {
+      name: 'follower_id',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'following_id',
+      referencedColumnName: 'id',
+    },
+  })
+  following!: UserEntity[];
+
+  @ManyToMany(() => UserEntity, (user) => user.following, {
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+  })
+  followers!: UserEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
