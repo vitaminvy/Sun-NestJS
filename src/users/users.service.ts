@@ -44,6 +44,9 @@ export class UsersService {
     @InjectRepository(UserEntity)
     private readonly usersRepository: Repository<UserEntity>,
 
+    @InjectRepository(AttachmentEntity)
+    private readonly attachmentsRepository: Repository<AttachmentEntity>,
+
     private readonly jwtService: JwtService,
 
     private readonly redisService: RedisService,
@@ -67,7 +70,6 @@ export class UsersService {
       username,
       password: hashedPassword,
       bio: null,
-      image: null,
     });
 
     const savedUser = await this.usersRepository.save(user);
@@ -99,7 +101,9 @@ export class UsersService {
       );
     }
 
-    return this.buildUserResponse(user);
+    const avatarUrl = await this.findAvatarUrl(user.id);
+
+    return this.buildUserResponse(user, undefined, avatarUrl);
   }
 
   async getCurrentUser(
@@ -108,7 +112,9 @@ export class UsersService {
   ): Promise<UserResponseDto> {
     const user = await this.findAuthenticatedUser(userId);
 
-    return this.buildUserResponse(user, token);
+    const avatarUrl = await this.findAvatarUrl(user.id);
+
+    return this.buildUserResponse(user, token, avatarUrl);
   }
 
   async updateCurrentUser(
@@ -144,7 +150,6 @@ export class UsersService {
               user,
               storedAvatar,
             );
-            user.image = storedAvatar.url;
           }
 
           const userRepository = manager.getRepository(UserEntity);
@@ -158,7 +163,10 @@ export class UsersService {
 
       await this.safelyDeleteLocalFile(previousAvatarPath);
 
-      return this.buildUserResponse(savedUser);
+      const avatarUrl =
+        storedAvatar?.url ?? (await this.findAvatarUrl(savedUser.id));
+
+      return this.buildUserResponse(savedUser, undefined, avatarUrl);
     } catch (error) {
       await this.safelyDeleteLocalFile(storedAvatar?.path ?? avatarFile?.path);
 
@@ -304,6 +312,18 @@ export class UsersService {
     return user;
   }
 
+  private async findAvatarUrl(userId: number): Promise<string | null> {
+    const attachment = await this.attachmentsRepository.findOne({
+      where: {
+        attachableId: String(userId),
+        attachableType: this.userAttachableType,
+        fieldName: this.avatarFieldName,
+      },
+    });
+
+    return attachment?.url ?? null;
+  }
+
   private async moveAvatarToPublicPath(
     avatarFile: LocalUploadedFile,
   ): Promise<StoredAvatarFile> {
@@ -345,7 +365,7 @@ export class UsersService {
       },
     });
     const previousAvatarPath = this.resolvePublicFilePath(
-      existingAttachment?.url ?? user.image,
+      existingAttachment?.url,
     );
     const attachment =
       existingAttachment ??
@@ -399,7 +419,11 @@ export class UsersService {
     return fileName.length > 255 ? fileName.slice(0, 255) : fileName;
   }
 
-  private buildUserResponse(user: UserEntity, token?: string): UserResponseDto {
+  private buildUserResponse(
+    user: UserEntity,
+    token?: string,
+    avatarUrl: string | null = null,
+  ): UserResponseDto {
     const userToken =
       token ??
       this.jwtService.sign({
@@ -408,6 +432,6 @@ export class UsersService {
         username: user.username,
       });
 
-    return new UserResponseDto(user, userToken);
+    return new UserResponseDto(user, userToken, avatarUrl);
   }
 }

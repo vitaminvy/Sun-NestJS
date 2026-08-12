@@ -11,7 +11,6 @@ export class CreateUsersTable1785466341619 implements MigrationInterface {
         \`email\` varchar(255) NOT NULL,
         \`password\` varchar(255) NOT NULL,
         \`bio\` text NULL,
-        \`image\` varchar(500) NULL,
         \`created_at\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
         \`updated_at\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
         UNIQUE INDEX \`IDX_fe0bb3f6520ee0469504521e71\` (\`username\`),

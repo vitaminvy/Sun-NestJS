@@ -7,14 +7,21 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { AttachmentEntity } from '../attachments/entities/attachment.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { ProfileResponse } from './interfaces/profile-response.interface';
 
 @Injectable()
 export class FollowsService {
+  private readonly avatarFieldName = 'avatar';
+  private readonly userAttachableType = 'User';
+
   constructor(
     @InjectRepository(UserEntity)
     private readonly usersRepository: Repository<UserEntity>,
+
+    @InjectRepository(AttachmentEntity)
+    private readonly attachmentsRepository: Repository<AttachmentEntity>,
   ) {}
 
   async getProfile(
@@ -127,17 +134,31 @@ export class FollowsService {
     return Boolean(follow);
   }
 
-  private buildProfileResponse(
+  private async buildProfileResponse(
     user: UserEntity,
     following: boolean,
-  ): ProfileResponse {
+  ): Promise<ProfileResponse> {
+    const avatarUrl = await this.findAvatarUrl(user.id);
+
     return {
       profile: {
         username: user.username,
         bio: user.bio,
-        image: user.image,
+        image: avatarUrl,
         following,
       },
     };
+  }
+
+  private async findAvatarUrl(userId: number): Promise<string | null> {
+    const attachment = await this.attachmentsRepository.findOne({
+      where: {
+        attachableId: String(userId),
+        attachableType: this.userAttachableType,
+        fieldName: this.avatarFieldName,
+      },
+    });
+
+    return attachment?.url ?? null;
   }
 }

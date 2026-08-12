@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
+import { AttachmentEntity } from '../attachments/entities/attachment.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { FollowsService } from './follows.service';
 
@@ -13,6 +14,10 @@ describe('FollowsService', () => {
         FollowsService,
         {
           provide: getRepositoryToken(UserEntity),
+          useValue: {},
+        },
+        {
+          provide: getRepositoryToken(AttachmentEntity),
           useValue: {},
         },
       ],

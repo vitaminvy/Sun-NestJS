@@ -25,9 +25,6 @@ export class UserEntity {
   @Column({ type: 'text', nullable: true })
   bio!: string | null;
 
-  @Column({ type: 'varchar', nullable: true, length: 500 })
-  image!: string | null;
-
   @ManyToMany(() => UserEntity, (user) => user.followers, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
