@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { I18nContext } from 'nestjs-i18n';
+import { I18nService } from 'nestjs-i18n';
 
 @Injectable()
 export class AppService {
-  getHello(i18n: I18nContext): string {
-    return i18n.t('translation.HELLO');
+  constructor(private readonly i18nService: I18nService) {}
+
+  getHello(): string {
+    return this.i18nService.t('translation.HELLO');
   }
 }

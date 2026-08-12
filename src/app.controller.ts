@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags, ApiQuery } from '@nestjs/swagger';
-import { I18n, I18nContext } from 'nestjs-i18n';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+
 import { AppService } from './app.service';
 
 @ApiTags('App')
@@ -21,7 +21,7 @@ export class AppController {
     description: 'Hello World message returned successfully',
     type: String,
   })
-  getHello(@I18n() i18n: I18nContext): string {
-    return this.appService.getHello(i18n);
+  getHello(): string {
+    return this.appService.getHello();
   }
 }
