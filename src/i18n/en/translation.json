@@ -3,17 +3,34 @@
   "AUTH": {
     "ERRORS": {
       "UNAUTHORIZED": "Unauthorized",
-      "TOKEN_REVOKED": "Token has been revoked"
+      "TOKEN_REVOKED": "Token has been revoked",
+      "TOO_MANY_LOGIN_ATTEMPTS": "too many login attempts, please try again later"
     }
   },
   "USERS": {
     "ERRORS": {
       "INVALID_EMAIL_OR_PASSWORD": "email or password is invalid",
       "EMAIL_TAKEN": "email has already been taken",
-      "USERNAME_TAKEN": "username has already been taken"
+      "USERNAME_TAKEN": "username has already been taken",
+      "INVALID_AVATAR_TYPE": "avatar must be a gif, jpeg, png or webp",
+      "AVATAR_TOO_LARGE": "avatar file is too large",
+      "UPDATE_FAILED": "Failed to update current user. Please retry later."
     },
     "MESSAGES": {
-      "LOGOUT_SUCCESS": "Logout successfully"
+      "ACCESS_CREDENTIAL_CLEARED": "Logout successfully"
+    }
+  },
+  "FOLLOWS": {
+    "ERRORS": {
+      "CANNOT_FOLLOW_SELF": "cannot follow yourself",
+      "CANNOT_UNFOLLOW_SELF": "cannot unfollow yourself",
+      "PROFILE_NOT_FOUND": "Profile not found"
+    }
+  },
+  "ARTICLES": {
+    "ERRORS": {
+      "NOT_FOUND": "Article not found",
+      "FORBIDDEN": "You can only manage your own articles"
     }
   }
 }

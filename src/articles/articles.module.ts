@@ -8,13 +8,15 @@ import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { createJwtModuleOptions } from '../auth/jwt-module-options.factory';
 import { RedisModule } from '../redis/redis.module';
 import { UserEntity } from '../users/entities/user.entity';
-import { FollowsDataAccess } from './follows-data-access';
-import { FollowsService } from './follows.service';
-import { ProfilesController } from './profiles.controller';
+import { ArticlesRepository } from './articles.repository';
+import { ArticlesController } from './articles.controller';
+import { ArticlesService } from './articles.service';
+import { ArticleTagEntity } from './entities/article-tag.entity';
+import { ArticleEntity } from './entities/article.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserEntity]),
+    TypeOrmModule.forFeature([ArticleEntity, ArticleTagEntity, UserEntity]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -22,13 +24,13 @@ import { ProfilesController } from './profiles.controller';
     }),
     RedisModule,
   ],
-  controllers: [ProfilesController],
+  controllers: [ArticlesController],
   providers: [
-    FollowsDataAccess,
-    FollowsService,
+    ArticlesRepository,
+    ArticlesService,
     JwtAuthGuard,
     OptionalJwtAuthGuard,
   ],
-  exports: [FollowsService],
+  exports: [ArticlesService],
 })
-export class FollowsModule {}
+export class ArticlesModule {}

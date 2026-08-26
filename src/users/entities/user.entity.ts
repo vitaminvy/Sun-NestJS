@@ -25,10 +25,10 @@ export class UserEntity {
   @Column({ type: 'text', nullable: true })
   bio!: string | null;
 
-  @ManyToMany(() => UserEntity, (user) => user.followers, {
-    onDelete: 'CASCADE',
-    onUpdate: 'CASCADE',
-  })
+  @Column({ type: 'varchar', nullable: true, length: 500 })
+  image!: string | null;
+
+  @ManyToMany(() => UserEntity, (user) => user.followers)
   @JoinTable({
     name: 'user_follows',
     joinColumn: {
@@ -42,10 +42,7 @@ export class UserEntity {
   })
   following!: UserEntity[];
 
-  @ManyToMany(() => UserEntity, (user) => user.following, {
-    onDelete: 'CASCADE',
-    onUpdate: 'CASCADE',
-  })
+  @ManyToMany(() => UserEntity, (user) => user.following)
   followers!: UserEntity[];
 
   @CreateDateColumn({ name: 'created_at' })

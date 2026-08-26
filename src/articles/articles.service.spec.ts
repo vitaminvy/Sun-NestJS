@@ -1,18 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { I18nService } from 'nestjs-i18n';
 
-import { FollowsDataAccess } from './follows-data-access';
-import { FollowsService } from './follows.service';
+import { ArticlesRepository } from './articles.repository';
+import { ArticlesService } from './articles.service';
 
-describe('FollowsService', () => {
-  let service: FollowsService;
+describe('ArticlesService', () => {
+  let service: ArticlesService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        FollowsService,
+        ArticlesService,
         {
-          provide: FollowsDataAccess,
+          provide: ArticlesRepository,
           useValue: {},
         },
         {
@@ -24,7 +24,7 @@ describe('FollowsService', () => {
       ],
     }).compile();
 
-    service = module.get<FollowsService>(FollowsService);
+    service = module.get<ArticlesService>(ArticlesService);
   });
 
   it('should be defined', () => {

@@ -1,18 +1,22 @@
 import {
+  HttpException,
+  Inject,
   Injectable,
+  InternalServerErrorException,
+  Logger,
   UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { I18nService } from 'nestjs-i18n';
 import { rename, unlink } from 'node:fs/promises';
 import { basename, isAbsolute, join, relative } from 'node:path';
-import { Repository } from 'typeorm';
+import { I18nService } from 'nestjs-i18n';
+import type ms from 'ms';
 
 import { AttachmentEntity } from '../attachments/entities/attachment.entity';
-import { RedisService } from '../redis/redis.service';
+import { AccessCredentialRepository } from '../auth/access-credential.repository';
 import type { LocalUploadedFile } from '../uploads/interfaces/local-uploaded-file.interface';
 import {
   AVATAR_MIME_TYPE_EXTENSIONS,
@@ -25,6 +29,29 @@ import { RegisterUserDto } from './dto/register-user.dto';
 import { UpdateUserDto, UpdateUserRequestDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UserEntity } from './entities/user.entity';
+import { UsersDataAccess } from './users-data-access';
+
+const DEFAULT_JWT_EXPIRES_IN = '1d';
+const JWT_EXPIRES_IN_CONFIG_KEY = 'JWT_EXPIRES_IN';
+
+interface ConfigReader {
+  get<T>(propertyPath: string, defaultValue: T): T;
+}
+
+interface JwtSigner {
+  sign(
+    payload: {
+      email: string;
+      sub: number;
+      username: string;
+    },
+    options: { expiresIn: ms.StringValue },
+  ): string;
+}
+
+interface StoredCredentialRepository {
+  saveDisabledCredential(credential: string, ttlSeconds: number): Promise<void>;
+}
 
 interface StoredAvatarFile {
   path: string;
@@ -34,24 +61,57 @@ interface StoredAvatarFile {
   fileSize: number;
 }
 
+interface TranslationService {
+  t(key: string): string;
+}
+
+interface UserStore {
+  createAvatarAttachment(attachmentData: {
+    attachableId: string;
+    attachableType: string;
+    fieldName: string;
+  }): AttachmentEntity;
+  createUser(userData: {
+    bio: string | null;
+    email: string;
+    image: string | null;
+    password: string;
+    username: string;
+  }): UserEntity;
+  findAvatarAttachment(
+    attachableId: string,
+    attachableType: string,
+    fieldName: string,
+  ): Promise<AttachmentEntity | null>;
+  findUserByEmail(email: string): Promise<UserEntity | null>;
+  findUserById(userId: number): Promise<UserEntity | null>;
+  findUserByUsername(username: string): Promise<UserEntity | null>;
+  saveAvatarAttachment(attachment: AttachmentEntity): Promise<AttachmentEntity>;
+  saveUser(user: UserEntity): Promise<UserEntity>;
+}
+
 @Injectable()
 export class UsersService {
   private readonly passwordSaltRounds = 10;
   private readonly avatarFieldName = 'avatar';
   private readonly userAttachableType = 'User';
+  private readonly disabledCredentialTtlSeconds = 3600;
 
   constructor(
-    @InjectRepository(UserEntity)
-    private readonly usersRepository: Repository<UserEntity>,
+    @Inject(UsersDataAccess)
+    private readonly usersRepository: UserStore,
 
-    @InjectRepository(AttachmentEntity)
-    private readonly attachmentsRepository: Repository<AttachmentEntity>,
+    @Inject(JwtService)
+    private readonly jwtService: JwtSigner,
 
-    private readonly jwtService: JwtService,
+    @Inject(AccessCredentialRepository)
+    private readonly accessCredentialRepository: StoredCredentialRepository,
 
-    private readonly redisService: RedisService,
+    @Inject(ConfigService)
+    private readonly configService: ConfigReader,
 
-    private readonly i18nService: I18nService,
+    @Inject(I18nService)
+    private readonly i18nService: TranslationService,
   ) {}
 
   async register(registerUserDto: RegisterUserDto): Promise<UserResponseDto> {
@@ -65,14 +125,15 @@ export class UsersService {
       this.passwordSaltRounds,
     );
 
-    const user = this.usersRepository.create({
+    const user = this.usersRepository.createUser({
       email,
       username,
       password: hashedPassword,
       bio: null,
+      image: null,
     });
 
-    const savedUser = await this.usersRepository.save(user);
+    const savedUser = await this.usersRepository.saveUser(user);
 
     return this.buildUserResponse(savedUser);
   }
@@ -80,9 +141,7 @@ export class UsersService {
   async login(loginUserDto: LoginUserDto): Promise<UserResponseDto> {
     const email = loginUserDto.email.trim().toLowerCase();
 
-    const user = await this.usersRepository.findOne({
-      where: { email },
-    });
+    const user = await this.usersRepository.findUserByEmail(email);
 
     if (!user) {
       throw this.createBodyErrorException(
@@ -101,9 +160,7 @@ export class UsersService {
       );
     }
 
-    const avatarUrl = await this.findAvatarUrl(user.id);
-
-    return this.buildUserResponse(user, undefined, avatarUrl);
+    return this.buildUserResponse(user);
   }
 
   async getCurrentUser(
@@ -112,9 +169,7 @@ export class UsersService {
   ): Promise<UserResponseDto> {
     const user = await this.findAuthenticatedUser(userId);
 
-    const avatarUrl = await this.findAvatarUrl(user.id);
-
-    return this.buildUserResponse(user, token, avatarUrl);
+    return this.buildUserResponse(user, token);
   }
 
   async updateCurrentUser(
@@ -134,53 +189,41 @@ export class UsersService {
         storedAvatar = await this.moveAvatarToPublicPath(avatarFile);
       }
 
-      const { savedUser, previousAvatarPath } =
-        await this.usersRepository.manager.transaction<{
-          savedUser: UserEntity;
-          previousAvatarPath?: string;
-        }>(async (manager) => {
-          let previousAvatarPath: string | undefined;
+      let previousAvatarPath: string | undefined;
 
-          if (storedAvatar) {
-            const attachmentsRepository =
-              manager.getRepository(AttachmentEntity);
+      if (storedAvatar) {
+        previousAvatarPath = await this.upsertAvatarAttachment(
+          user,
+          storedAvatar,
+        );
+        user.image = storedAvatar.url;
+      }
 
-            previousAvatarPath = await this.upsertAvatarAttachment(
-              attachmentsRepository,
-              user,
-              storedAvatar,
-            );
-          }
-
-          const userRepository = manager.getRepository(UserEntity);
-          const savedUser = await userRepository.save(user);
-
-          return {
-            savedUser,
-            previousAvatarPath,
-          };
-        });
+      const savedUser = await this.usersRepository.saveUser(user);
 
       await this.safelyDeleteLocalFile(previousAvatarPath);
 
-      const avatarUrl =
-        storedAvatar?.url ?? (await this.findAvatarUrl(savedUser.id));
-
-      return this.buildUserResponse(savedUser, undefined, avatarUrl);
+      return this.buildUserResponse(savedUser);
     } catch (error) {
       await this.safelyDeleteLocalFile(storedAvatar?.path ?? avatarFile?.path);
 
-      throw error;
+      this.logUpdateCurrentUserFailure(error, userId);
+      this.throwUpdateCurrentUserError(error);
     }
   }
 
-  async logout(token: string): Promise<{ message: string }> {
-    const client = this.redisService.getClient();
-
-    await client.set(token, 'blacklisted', 'EX', 3600);
+  async storeRevokedAccessCredential(
+    credential: string,
+  ): Promise<{ message: string }> {
+    await this.accessCredentialRepository.saveDisabledCredential(
+      credential,
+      this.disabledCredentialTtlSeconds,
+    );
 
     return {
-      message: this.i18nService.t('translation.USERS.MESSAGES.LOGOUT_SUCCESS'),
+      message: this.i18nService.t(
+        'translation.USERS.MESSAGES.ACCESS_CREDENTIAL_CLEARED',
+      ),
     };
   }
 
@@ -188,9 +231,7 @@ export class UsersService {
     email: string,
     username: string,
   ): Promise<void> {
-    const existingEmail = await this.usersRepository.findOne({
-      where: { email },
-    });
+    const existingEmail = await this.usersRepository.findUserByEmail(email);
 
     if (existingEmail) {
       throw this.createBodyErrorException(
@@ -198,25 +239,14 @@ export class UsersService {
       );
     }
 
-    const existingUsername = await this.usersRepository.findOne({
-      where: { username },
-    });
+    const existingUsername =
+      await this.usersRepository.findUserByUsername(username);
 
     if (existingUsername) {
       throw this.createBodyErrorException(
         'translation.USERS.ERRORS.USERNAME_TAKEN',
       );
     }
-  }
-
-  private createBodyErrorException(
-    translationKey: string,
-  ): UnprocessableEntityException {
-    return new UnprocessableEntityException({
-      errors: {
-        body: [this.i18nService.t(translationKey)],
-      },
-    });
   }
 
   private normalizeUpdateUserDto(
@@ -272,9 +302,7 @@ export class UsersService {
     email: string,
     currentUserId: number,
   ): Promise<void> {
-    const existingEmail = await this.usersRepository.findOne({
-      where: { email },
-    });
+    const existingEmail = await this.usersRepository.findUserByEmail(email);
 
     if (existingEmail && existingEmail.id !== currentUserId) {
       throw this.createBodyErrorException(
@@ -287,9 +315,8 @@ export class UsersService {
     username: string,
     currentUserId: number,
   ): Promise<void> {
-    const existingUsername = await this.usersRepository.findOne({
-      where: { username },
-    });
+    const existingUsername =
+      await this.usersRepository.findUserByUsername(username);
 
     if (existingUsername && existingUsername.id !== currentUserId) {
       throw this.createBodyErrorException(
@@ -299,9 +326,7 @@ export class UsersService {
   }
 
   private async findAuthenticatedUser(userId: number): Promise<UserEntity> {
-    const user = await this.usersRepository.findOne({
-      where: { id: userId },
-    });
+    const user = await this.usersRepository.findUserById(userId);
 
     if (!user) {
       throw new UnauthorizedException(
@@ -312,18 +337,6 @@ export class UsersService {
     return user;
   }
 
-  private async findAvatarUrl(userId: number): Promise<string | null> {
-    const attachment = await this.attachmentsRepository.findOne({
-      where: {
-        attachableId: String(userId),
-        attachableType: this.userAttachableType,
-        fieldName: this.avatarFieldName,
-      },
-    });
-
-    return attachment?.url ?? null;
-  }
-
   private async moveAvatarToPublicPath(
     avatarFile: LocalUploadedFile,
   ): Promise<StoredAvatarFile> {
@@ -332,7 +345,9 @@ export class UsersService {
     if (!extension) {
       throw new UnprocessableEntityException({
         errors: {
-          body: ['avatar must be a gif, jpeg, png or webp'],
+          body: [
+            this.i18nService.t('translation.USERS.ERRORS.INVALID_AVATAR_TYPE'),
+          ],
         },
       });
     }
@@ -352,24 +367,21 @@ export class UsersService {
   }
 
   private async upsertAvatarAttachment(
-    attachmentsRepository: Repository<AttachmentEntity>,
     user: UserEntity,
     storedAvatar: StoredAvatarFile,
   ): Promise<string | undefined> {
     const attachableId = String(user.id);
-    const existingAttachment = await attachmentsRepository.findOne({
-      where: {
-        attachableId,
-        attachableType: this.userAttachableType,
-        fieldName: this.avatarFieldName,
-      },
-    });
+    const existingAttachment = await this.usersRepository.findAvatarAttachment(
+      attachableId,
+      this.userAttachableType,
+      this.avatarFieldName,
+    );
     const previousAvatarPath = this.resolvePublicFilePath(
-      existingAttachment?.url,
+      existingAttachment?.url ?? user.image,
     );
     const attachment =
       existingAttachment ??
-      attachmentsRepository.create({
+      this.usersRepository.createAvatarAttachment({
         attachableId,
         attachableType: this.userAttachableType,
         fieldName: this.avatarFieldName,
@@ -380,7 +392,7 @@ export class UsersService {
     attachment.fileType = storedAvatar.fileType;
     attachment.fileSize = storedAvatar.fileSize;
 
-    await attachmentsRepository.save(attachment);
+    await this.usersRepository.saveAvatarAttachment(attachment);
 
     return previousAvatarPath === storedAvatar.path
       ? undefined
@@ -419,19 +431,66 @@ export class UsersService {
     return fileName.length > 255 ? fileName.slice(0, 255) : fileName;
   }
 
-  private buildUserResponse(
-    user: UserEntity,
-    token?: string,
-    avatarUrl: string | null = null,
-  ): UserResponseDto {
+  private logUpdateCurrentUserFailure(error: unknown, userId: number): void {
+    Logger.warn(
+      {
+        message:
+          'Failed to update current user; temporary uploaded files were cleaned up when present.',
+        guidance:
+          'Check request validation, file storage, and database availability before retrying.',
+        userId,
+        cause: error instanceof Error ? error.message : String(error),
+      },
+      UsersService.name,
+    );
+  }
+
+  private throwUpdateCurrentUserError(error: unknown): never {
+    if (error instanceof HttpException) {
+      throw new HttpException(error.getResponse(), error.getStatus(), {
+        cause: error,
+      });
+    }
+
+    throw new InternalServerErrorException(
+      this.i18nService.t('translation.USERS.ERRORS.UPDATE_FAILED'),
+      {
+        cause: error,
+      },
+    );
+  }
+
+  private getJwtExpiresIn(): ms.StringValue {
+    return this.configService.get<ms.StringValue>(
+      JWT_EXPIRES_IN_CONFIG_KEY,
+      DEFAULT_JWT_EXPIRES_IN,
+    );
+  }
+
+  private createBodyErrorException(
+    translationKey: string,
+  ): UnprocessableEntityException {
+    return new UnprocessableEntityException({
+      errors: {
+        body: [this.i18nService.t(translationKey)],
+      },
+    });
+  }
+
+  private buildUserResponse(user: UserEntity, token?: string): UserResponseDto {
     const userToken =
       token ??
-      this.jwtService.sign({
-        sub: user.id,
-        email: user.email,
-        username: user.username,
-      });
+      this.jwtService.sign(
+        {
+          sub: user.id,
+          email: user.email,
+          username: user.username,
+        },
+        {
+          expiresIn: this.getJwtExpiresIn(),
+        },
+      );
 
-    return new UserResponseDto(user, userToken, avatarUrl);
+    return new UserResponseDto(user, userToken);
   }
 }

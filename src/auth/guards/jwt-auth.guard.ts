@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -9,7 +10,10 @@ import { Request } from 'express';
 import { I18nService } from 'nestjs-i18n';
 
 import { RedisService } from '../../redis/redis.service';
+import { TOKEN_AUTH_SCHEME } from '../auth.constants';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
+
+const JWT_GUARD_LOG_CONTEXT = 'JwtGuard';
 
 export interface AuthenticatedRequest extends Request {
   user?: JwtPayload;
@@ -33,13 +37,9 @@ export class JwtAuthGuard implements CanActivate {
       throw this.createUnauthorizedException();
     }
 
-    let payload: JwtPayload;
-
-    try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(token);
-    } catch {
-      throw this.createUnauthorizedException();
-    }
+    const payload = await this.jwtService
+      .verifyAsync<JwtPayload>(token)
+      .catch((error: unknown) => this.rejectInvalidToken(error));
 
     const client = this.redisService.getClient();
     const blacklisted = await client.get(token);
@@ -62,6 +62,19 @@ export class JwtAuthGuard implements CanActivate {
     );
   }
 
+  private rejectInvalidToken(error: unknown): never {
+    Logger.warn(
+      {
+        message: 'JWT verification failed, so the request was rejected.',
+        guidance: 'Ask the client to request a fresh access credential.',
+        cause: error instanceof Error ? error.message : String(error),
+      },
+      JWT_GUARD_LOG_CONTEXT,
+    );
+
+    throw this.createUnauthorizedException();
+  }
+
   private extractToken(request: AuthenticatedRequest): string | undefined {
     const authorization = request.headers.authorization;
 
@@ -71,7 +84,7 @@ export class JwtAuthGuard implements CanActivate {
 
     const [scheme, token] = authorization.split(' ');
 
-    if (scheme !== 'Token' || !token) {
+    if (scheme !== TOKEN_AUTH_SCHEME || !token) {
       return undefined;
     }
 

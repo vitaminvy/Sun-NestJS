@@ -1,4 +1,11 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBody,
   ApiCreatedResponse,
@@ -7,6 +14,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
+import { LoginRateLimitGuard } from '../auth/guards/login-rate-limit.guard';
+import { useantiCacheHeaders } from '../common/interceptors/anti-cache.interceptor';
 import { LoginUserRequestDto } from './dto/login-user.dto';
 import { RegisterUserRequestDto } from './dto/register-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
@@ -18,6 +27,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @useantiCacheHeaders()
   @ApiOperation({ summary: 'Register a new user' })
   @ApiBody({ type: RegisterUserRequestDto })
   @ApiCreatedResponse({ type: UserResponseDto })
@@ -27,6 +37,8 @@ export class UsersController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(LoginRateLimitGuard)
+  @useantiCacheHeaders()
   @ApiOperation({ summary: 'Login user' })
   @ApiBody({ type: LoginUserRequestDto })
   @ApiOkResponse({ type: UserResponseDto })

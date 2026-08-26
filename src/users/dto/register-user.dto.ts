@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsEmail,
+  IsDefined,
   IsNotEmpty,
   IsString,
   MinLength,
@@ -28,6 +29,7 @@ export class RegisterUserDto {
 
 export class RegisterUserRequestDto {
   @ApiProperty({ type: RegisterUserDto })
+  @IsDefined()
   @ValidateNested()
   @Type(() => RegisterUserDto)
   user!: RegisterUserDto;
