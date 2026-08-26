@@ -1,5 +1,19 @@
 {
   "HELLO": "Xin chào thế giới!",
+  "VALIDATION": {
+    "IS_DEFINED": "Trường {property} là bắt buộc",
+    "IS_OBJECT": "Trường {property} phải là một object",
+    "IS_STRING": "Trường {property} phải là chuỗi",
+    "IS_NOT_EMPTY": "Trường {property} không được để trống",
+    "IS_EMAIL": "Trường {property} phải là email hợp lệ",
+    "MIN_LENGTH": "Trường {property} phải có ít nhất {constraints.0} ký tự",
+    "IS_ARRAY": "Trường {property} phải là mảng",
+    "ARRAY_UNIQUE": "Trường {property} không được có giá trị trùng lặp",
+    "IS_INT": "Trường {property} phải là số nguyên",
+    "MIN": "Trường {property} không được nhỏ hơn {constraints.0}",
+    "MAX": "Trường {property} không được lớn hơn {constraints.0}",
+    "WHITELIST": "Không được gửi trường {property}"
+  },
   "AUTH": {
     "ERRORS": {
       "UNAUTHORIZED": "Không được phép",
@@ -31,6 +45,17 @@
     "ERRORS": {
       "NOT_FOUND": "Không tìm thấy bài viết",
       "FORBIDDEN": "Bạn chỉ có thể quản lý bài viết của chính mình"
+    }
+  },
+  "COMMENTS": {
+    "ERRORS": {
+      "NOT_FOUND": "Không tìm thấy bình luận",
+      "FORBIDDEN": "Bạn chỉ có thể quản lý bình luận của chính mình",
+      "INVALID_ID": "Id bình luận phải là số nguyên dương"
+    },
+    "MESSAGES": {
+      "ADDED": "Thêm bình luận thành công",
+      "DELETED": "Xóa bình luận thành công"
     }
   }
 }

@@ -30,6 +30,12 @@ import {
   ArticleResponseDto,
   ArticlesResponseDto,
 } from './dto/article-response.dto';
+import {
+  CommentResponseDto,
+  CommentsResponseDto,
+  DeleteCommentResponseDto,
+} from './dto/comment-response.dto';
+import { CreateCommentRequestDto } from './dto/create-comment.dto';
 import { CreateArticleRequestDto } from './dto/create-article.dto';
 import { ListArticlesQueryDto } from './dto/list-articles-query.dto';
 import { UpdateArticleRequestDto } from './dto/update-article.dto';
@@ -130,5 +136,42 @@ export class ArticlesController {
     @CurrentUser() currentUser: JwtPayload,
   ): Promise<ArticleResponseDto> {
     return this.articlesService.unfavoriteArticle(slug, currentUser.sub);
+  }
+
+  @Post(':slug/comments')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Add comment to article' })
+  @ApiBody({ type: CreateCommentRequestDto })
+  @ApiCreatedResponse({ type: CommentResponseDto })
+  addComment(
+    @Param('slug') slug: string,
+    @CurrentUser() currentUser: JwtPayload,
+    @Body() body: CreateCommentRequestDto,
+  ): Promise<CommentResponseDto> {
+    return this.articlesService.addComment(slug, currentUser.sub, body.comment);
+  }
+
+  @Get(':slug/comments')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: 'Get comments from article' })
+  @ApiOkResponse({ type: CommentsResponseDto })
+  getComments(
+    @Param('slug') slug: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<CommentsResponseDto> {
+    return this.articlesService.getComments(slug, request.user?.sub);
+  }
+
+  @Delete(':slug/comments/:id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Delete comment' })
+  @ApiOkResponse({ type: DeleteCommentResponseDto })
+  deleteComment(
+    @Param('slug') slug: string,
+    @Param('id') commentId: string,
+    @CurrentUser() currentUser: JwtPayload,
+  ): Promise<DeleteCommentResponseDto> {
+    return this.articlesService.deleteComment(slug, commentId, currentUser.sub);
   }
 }

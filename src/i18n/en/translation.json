@@ -1,5 +1,19 @@
 {
   "HELLO": "Hello World!",
+  "VALIDATION": {
+    "IS_DEFINED": "{property} is required",
+    "IS_OBJECT": "{property} must be an object",
+    "IS_STRING": "{property} must be a string",
+    "IS_NOT_EMPTY": "{property} should not be empty",
+    "IS_EMAIL": "{property} must be an email",
+    "MIN_LENGTH": "{property} must be at least {constraints.0} characters",
+    "IS_ARRAY": "{property} must be an array",
+    "ARRAY_UNIQUE": "{property} must not contain duplicate values",
+    "IS_INT": "{property} must be an integer",
+    "MIN": "{property} must not be less than {constraints.0}",
+    "MAX": "{property} must not be greater than {constraints.0}",
+    "WHITELIST": "{property} should not exist"
+  },
   "AUTH": {
     "ERRORS": {
       "UNAUTHORIZED": "Unauthorized",
@@ -31,6 +45,17 @@
     "ERRORS": {
       "NOT_FOUND": "Article not found",
       "FORBIDDEN": "You can only manage your own articles"
+    }
+  },
+  "COMMENTS": {
+    "ERRORS": {
+      "NOT_FOUND": "Comment not found",
+      "FORBIDDEN": "You can only manage your own comments",
+      "INVALID_ID": "Comment id must be a positive integer"
+    },
+    "MESSAGES": {
+      "ADDED": "Comment added successfully",
+      "DELETED": "Comment deleted successfully"
     }
   }
 }
